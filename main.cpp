@@ -364,8 +364,8 @@ struct Player {
             trueMove(realOffset);
             return;
         }
-        cameraPos.x = std::clamp<double>(cameraPos.x + offset.x, -(worldSize * tileSize - windowSize.x), 0);
-        cameraPos.y = std::clamp<double>(cameraPos.y + offset.y, -(worldSize * tileSize - windowSize.y), 0);
+        cameraPos.x = std::clamp<double>(cameraPos.x + offset.x, -(worldSize * tileSize - windowSize.x - 64 * 2), 0);
+        cameraPos.y = std::clamp<double>(cameraPos.y + offset.y, -(worldSize * tileSize - windowSize.y - 68), 0);
     }
     void draw(sf::RenderWindow &window) {
         animator.draw(window, position, {2.5, 2.5});
