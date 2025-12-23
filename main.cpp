@@ -130,18 +130,18 @@ bool FuzzyEq(sf::Vector2<double> self, sf::Vector2<double> other, double epsilon
 struct Animation {
     double timePerFrame;
     double totalTime;
+    bool Loop = true;
     std::vector<sf::Texture*> KeyFrames;
     Animation() : timePerFrame(0.0), totalTime(0.0) {};
-    Animation(double time, std::string entityName, std::string animName, std::string variantName) : timePerFrame(1.0 / time) {
+    Animation(double time, std::string entityName, std::string animName, std::string variantName, bool loop = true) : timePerFrame(1.0 / time), Loop(loop) {
         if (!animTextureCache.contains(entityName) || !animTextureCache[entityName].contains(animName) || !animTextureCache[entityName][animName].contains(variantName)) return;
         std::vector<sf::Texture>& Data = animTextureCache[entityName][animName][variantName];
         for (int i = 0; i < Data.size(); i += 1) {
-            std::cout << (Data[i].getSize().y);
             KeyFrames.push_back(&Data[i]);
         }
         totalTime = KeyFrames.size() * (1.0 / time);
     };
-    Animation(double time, std::initializer_list<sf::Texture*> args) : timePerFrame(1.0 / time), KeyFrames(args), totalTime(args.size()* (1.0 / time)) {};
+    Animation(double time, std::initializer_list<sf::Texture*> args, bool loop = true) : timePerFrame(1.0 / time), KeyFrames(args), totalTime(args.size()* (1.0 / time)), Loop(loop) {};
 };
 
 struct Animator {
@@ -162,7 +162,7 @@ struct Animator {
         if (animTextureCache.contains(entityName)) {
             for ( std::pair<const std::string, std::unordered_map<std::string, std::vector<sf::Texture>>>& i : animTextureCache[entityName]) {
                 for (std::pair<const std::string, std::vector<sf::Texture>>& ii : i.second) {
-                    Animations[i.first][ii.first] = Animation(FPS, entityName, i.first, ii.first);
+                    Animations[i.first][ii.first] = Animation(FPS, entityName, i.first, ii.first, i.first != "Death");
                 }
             }
         }
@@ -187,7 +187,7 @@ struct Animator {
         if (Animations.contains(Anim) && Animations[Anim].contains(Variant)) {
             Animation& data = Animations[Anim][Variant];
             currentTime = currentTime + deltaTime;
-            if (currentTime >= data.totalTime) {
+            if (currentTime >= data.totalTime && data.Loop) {
                 currentTime = 0.0;
             }
             int index = (int)(currentTime / data.timePerFrame);
@@ -317,6 +317,12 @@ struct Player {
         animator.changeAnim(anim, variant);
     }
     void move(sf::Vector2<double> offset, double deltaTime) {
+        if (Health <= 0.0) {
+            if (Anim != "Death") {
+                changeAnim("Death", animVariant);
+            }
+            return;
+        }
         if (FuzzyEq(offset.x, 0) && FuzzyEq(offset.y, 0)) {
             if (Anim != "Idle") {
                 changeAnim("Idle", animVariant);
@@ -354,6 +360,7 @@ struct Player {
     }
     void draw(sf::RenderWindow &window) {
         animator.draw(window, position, {2.5, 2.5});
+        Health -= (10.0 * deltaTime);
     }
 };
 
