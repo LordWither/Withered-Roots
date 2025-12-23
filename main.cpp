@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <unordered_map>
 #include <filesystem>
 #include <initializer_list>
@@ -15,23 +16,31 @@ sf::Vector2<double> cameraPos = sf::Vector2<double>(0.0f, 0.0f);
 sf::Vector2<int> windowSize;
 sf::Vector2<double> playerPos{ 0.0, 0.0 };
 sf::Texture grassTexture = sf::Texture("Assets\\Grass.png");
+sf::Music dayTheme("Assets\\DayTheme.ogg");
 const int worldSize = 200;
 const int tileSize = 100;
 sf::Color dayTint = sf::Color::Color(255, 200, 100, 255U);
 sf::Color nightTint = sf::Color::Color(29, 89, 255, 255U);
 sf::Color colorTint = sf::Color::Color(255, 255, 255, 255U);
 sf::Color fogColor = sf::Color::Color(128, 128, 128, 255U);
-std::string mode = "Day";
+std::string Mode = "Day";
 double currentTime = 0.0f;
 double deltaTime = 0.0f;
 double combinedDeltaTime = 0.0f;
 const double pi = 3.14159265358979323846;
 double fogStartDay = 450.0;
-double fogEndDay = 700.0;
+double fogEndDay = 1300.0;
 double fogStartNight = fogStartDay * 0.9;
 double fogEndNight = fogEndDay * 0.9;
+double dayTime = 20.0;
+double nightTime = 120.0;
 double fogStart = 0.0;
 double fogEnd = 0.0;
+double gameTimer = 0.0;
+sf::Music Halloween1("Assets\\Halloween1.ogg");
+sf::Music Halloween2("Assets\\Halloween2.ogg");
+sf::Music Halloween3("Assets\\Halloween3.ogg");
+sf::Music HalloweenGhost("Assets\\HalloweenGhost.wav");
 std::filesystem::path parentDirectory = std::filesystem::current_path();
 std::filesystem::path Assets = parentDirectory / "Assets";
 
@@ -360,7 +369,7 @@ struct Player {
     }
     void draw(sf::RenderWindow &window) {
         animator.draw(window, position, {2.5, 2.5});
-        Health -= (10.0 * deltaTime);
+        //Health -= (10.0 * deltaTime);
     }
 };
 
@@ -371,8 +380,81 @@ double rad(double self) {
 int rad(int self) {
     return self * (pi / 180);
 }
-
+double nightTimePitches[6] = { 0.3, 0.2, 0.1, 0.1, 0.1, 0.1 };
+sf::Music* nightTimeAudios[6] = { &Halloween3, &Halloween2, &Halloween3, &Halloween1, &Halloween2, &HalloweenGhost };
+bool nightAudioCool = true;
+double lastNightAudioTime = 0.0;
 double colorAlpha = 0.0f;
+bool cycleTransitionRunning = false;
+void setNight() {
+    if (cycleTransitionRunning == false) {
+        gameTimer = 0.0;
+        colorAlpha = 0.0;
+        cycleTransitionRunning = true;
+    }
+    colorAlpha = std::min(colorAlpha + deltaTime, 1.0);
+    dayTheme.setVolume((float)Lerp<double>(100.0, 0.0, colorAlpha));
+    for (int i = 0; i < 6; i += 1) {
+        (*nightTimeAudios[i]).setVolume((float)Lerp<double>(0.0, 100.0, colorAlpha));
+    }
+    if (FuzzyEq(colorAlpha, 1.0)) {
+        for (int i = 0; i < 6; i += 1) {
+            (*nightTimeAudios[i]).setVolume(100.0f);
+        }
+        gameTimer = 0.0;
+        colorAlpha = 1.0;
+        dayTheme.setVolume(0.0f);
+        cycleTransitionRunning = false;
+        lastNightAudioTime = 15.0;
+        nightAudioCool = false;
+        (*nightTimeAudios[4]).setPitch(nightTimePitches[4]);
+        (*nightTimeAudios[4]).play();
+        Mode = "Night";
+    }
+}
+
+void setDay() {
+    if (cycleTransitionRunning == false) {
+        gameTimer = 0.0;
+        colorAlpha = 1.0;
+        cycleTransitionRunning = true;
+        dayTheme.setVolume(0.0);
+    }
+    colorAlpha = std::max(colorAlpha - deltaTime, 0.0);
+    dayTheme.setVolume((float)Lerp<double>(100.0, 0.0, colorAlpha));
+    for (int i = 0; i < 6; i += 1) {
+        (*nightTimeAudios[i]).setVolume((float)Lerp<double>(0.0, 100.0, colorAlpha));
+    }
+    if (FuzzyEq(colorAlpha, 0.0)) {
+        gameTimer = 0.0;
+        colorAlpha = 0.0;
+        for (int i = 0; i < 6; i += 1) {
+            (*nightTimeAudios[i]).setVolume(0.0f);
+        }
+        dayTheme.setVolume(100.0f);
+        cycleTransitionRunning = false;
+        Mode = "Day";
+    }
+}
+
+void nightTimeAudioPlayLogic() { // Runs every frame
+    if (nightAudioCool) {
+        lastNightAudioTime = 10.0; // Wait 10 seconds before playing another
+        nightAudioCool = false;
+        int chance = random(0, 5); // Random integer between 0 and 5
+        sf::Music& Audio = *nightTimeAudios[chance]; // Retrieving the pointer value by reference to avoid any copying
+        Audio.setPitch(nightTimePitches[chance]); // Set Audio Pitch
+        Audio.play(); // Finally, play the damn thing
+    }
+    else {
+        lastNightAudioTime = std::max(lastNightAudioTime - deltaTime, 0.0);
+        if (FuzzyEq(lastNightAudioTime, 0.0)) { // FuzzyEq is a custom function, returns true even if floats are not truly equal, e.g, 2.00000000001 == 1.999999999 will return true
+            lastNightAudioTime = 0.0;
+            nightAudioCool = true;
+        }
+    }
+}
+
 int main()
 {
     srand(time(0));
@@ -385,13 +467,14 @@ int main()
     player.bareMove((sf::Vector2<double>(screenMode.size.x / 2.0f - 25.0f, screenMode.size.y / 2.0f - 25.0f)));
     sf::Clock deltaTimer;
     deltaTimer.start();
+    dayTheme.setLooping(true);
+    dayTheme.play();
     while (window.isOpen())
     {
-        colorAlpha += (deltaTime * 50.0f);
         colorTint = dayTint;
-        fogStart = (double)Lerp(fogStartDay, fogStartNight, sin(rad(colorAlpha)) * 0.5f + 0.5f);
-        fogEnd = (double)Lerp(fogEndDay, fogEndNight, sin(rad(colorAlpha)) * 0.5f + 0.5f);
-        colorTint = Lerp(dayTint, nightTint, sin(rad(colorAlpha)) * 0.5f + 0.5f);
+        fogStart = (double)Lerp(fogStartDay, fogStartNight, colorAlpha);
+        fogEnd = (double)Lerp(fogEndDay, fogEndNight, colorAlpha);
+        colorTint = Lerp(dayTint, nightTint, colorAlpha);
         deltaTime = (double)deltaTimer.restart().asSeconds();
         combinedDeltaTime += deltaTime;
         while (const std::optional event = window.pollEvent())
@@ -414,6 +497,18 @@ int main()
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
             movementOffset += { 0.0, -1.0 };
+        }
+        if (cycleTransitionRunning == false) {
+            gameTimer += deltaTime;
+        }
+        if (Mode == "Day" && (gameTimer > dayTime || cycleTransitionRunning)) {
+            setNight();
+        }
+        else if (Mode == "Night" && (gameTimer > nightTime || cycleTransitionRunning)) {
+            setDay();
+        }
+        if (Mode == "Night") {
+            nightTimeAudioPlayLogic();
         }
         player.move(movementOffset, deltaTime);
         window.clear();
