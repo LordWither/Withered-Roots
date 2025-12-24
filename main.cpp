@@ -1,9 +1,5 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Audio.hpp>
-#include <unordered_map>
-#include <filesystem>
-#include <initializer_list>
-#include <vector>
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -44,65 +40,161 @@ sf::Music HalloweenGhost("Assets\\HalloweenGhost.wav");
 std::filesystem::path parentDirectory = std::filesystem::current_path();
 std::filesystem::path Assets = parentDirectory / "Assets";
 
-std::unordered_map<std::string, std::unordered_map<std::string, std::unordered_map<std::string, std::vector<sf::Texture>>>> animTextureCache = {
-    {"Player", {
-            {"Idle", {
-                    {"Down", {}},
-                    {"Left", {}},
-                    {"Right", {}},
-                    {"Up", {}}
-                }
-            },
-            {"Walk", {
-                    {"Down", {}},
-                    {"Left", {}},
-                    {"Right", {}},
-                    {"Up", {}}
-                }
-            },
-            {"Death", {
-                    {"Down", {}},
-                    {"Left", {}},
-                    {"Right", {}},
-                    {"Up", {}}
-                }
+template<typename arrType>
+struct dynArray {
+    arrType* Core = nullptr;
+    int length = 0;
+    int occupiedLength = 0;
+    dynArray() : Core(nullptr) {
+        length = 1;
+        if (Core != nullptr) delete[] Core;
+        Core = new arrType[length];
+        occupiedLength = 0;
+    };
+    dynArray(arrType* initialSet, int setLength) : Core(nullptr) {
+        if (initialSet == nullptr || setLength <= 0) {
+            return;
+        }
+        if (Core != nullptr) delete[] Core;
+        length = setLength;
+        occupiedLength = setLength;
+        Core = initialSet;
+    }
+    void resize(int newSize) {
+        length = newSize;
+        arrType* tmp = new arrType[length];
+        int iterator;
+        if (occupiedLength <= length)
+            iterator = occupiedLength;
+        else
+            iterator = length;
+        occupiedLength = 0;
+        for (int i = 0; i < iterator; i += 1) {
+            tmp[i] = Core[i];
+            occupiedLength += 1;
+        }
+        delete[] Core;
+        Core = tmp;
+    }
+    void insert(arrType data) {
+        if (occupiedLength < length) {
+            Core[occupiedLength] = data;
+            occupiedLength += 1;
+            return;
+        }
+        length *= 2;
+        arrType* tmp = new arrType[length];
+        for (int i = 0; i < occupiedLength; i += 1) {
+            tmp[i] = Core[i];
+        }
+        tmp[occupiedLength] = data;
+        occupiedLength += 1;
+        delete[] Core;
+        Core = tmp;
+    }
+    void remove(int Index) {
+        if (Index >= occupiedLength) return;
+        length -= 1;
+        arrType* tmp = new arrType[length];
+        for (int i = 0; i < occupiedLength; i += 1) {
+            if (i < Index)
+                tmp[i] = Core[i];
+            else if (i > Index)
+                tmp[i - 1] = Core[i];
+        }
+        occupiedLength -= 1;
+        delete[] Core;
+        Core = tmp;
+    }
+    int size() {
+        return occupiedLength;
+    }
+    int find(arrType item) {
+        for (int i = 0; i < occupiedLength; i += 1) {
+            if (Core[i] == item) {
+                return i;
             }
         }
+        return -1;
+    }
+    bool contains(arrType item) {
+        for (int i = 0; i < occupiedLength; i += 1) {
+            if (Core[i] == item) {
+                return true;
+            }
+        }
+        return false;
+    }
+    arrType& operator[](int index) {
+        return Core[index];
+    }
+    dynArray(const dynArray& other) {
+        length = other.length;
+        occupiedLength = other.occupiedLength;
+        Core = new arrType[length];
+        for (int i = 0; i < occupiedLength; i += 1) {
+            Core[i] = other.Core[i];
+        }
+    };
+    dynArray& operator=(const dynArray& other) {
+        if (this == &other) return *this;
+        delete[] Core;
+        length = other.length;
+        occupiedLength = other.occupiedLength;
+        Core = new arrType[length];
+        for (int i = 0; i < occupiedLength; i += 1) {
+            Core[i] = other.Core[i];
+        }
+        return *this;
+    };
+    ~dynArray() {
+        delete[] Core;
+        Core = nullptr;
+        length = 0;
+        occupiedLength = 0;
     }
 };
 
-void initAnimDict() {
-    if (!std::filesystem::exists(Assets)) {
-        std::cerr << "Critical Failiure: Asset folder not found at " << Assets.string() << "\n";
-        exit(0);
-    }
-    for (std::pair<const std::string, std::unordered_map<std::string, std::unordered_map<std::string, std::vector<sf::Texture>>>>& i : animTextureCache) {
-        std::filesystem::path currentDiri = Assets / i.first;
-        if (!std::filesystem::exists(currentDiri)) {
-            std::cout << "Missing Directory: " << currentDiri.string() << "\n";
-            continue;
-        };
-        for (std::pair<const std::string, std::unordered_map<std::string, std::vector<sf::Texture>>>& ii : i.second) {
-            std::filesystem::path currentDirii = currentDiri / ii.first;
-            if (!std::filesystem::exists(currentDirii)) {
-                std::cout << "Missing Directory: " << currentDirii.string() << "\n";
-                continue;
-            };
-            for (std::pair<const std::string, std::vector<sf::Texture>>& iii : ii.second) {
-                std::filesystem::path currentDiriii = currentDirii / iii.first;
-                if (!std::filesystem::exists(currentDiriii)) {
-                    std::cout << "Missing Directory: " << currentDiriii.string() << "\n";
-                    continue;
-                };
-                for (const std::filesystem::directory_entry& iiii : std::filesystem::directory_iterator(currentDiriii)) {
-                    if (iiii.is_regular_file()) {
-                        std::string localPath = "Assets\\" + i.first + "\\" + ii.first + "\\" + iii.first + "\\" + iiii.path().filename().string();
-                        iii.second.push_back(sf::Texture(localPath));
-                    }
-                }
-            }
-        }
-    }
+dynArray<std::string> animNames;
+dynArray<dynArray<sf::Texture>> animData;
+
+void initAnims() {
+    dynArray<sf::Texture> playerIdleUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle1.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle2.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle3.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle4.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle5.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle6.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle7.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Up\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> playerIdleDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle1.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle2.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle3.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle4.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle5.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle6.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle7.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Down\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> playerIdleLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle1.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle2.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle3.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle4.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle5.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle6.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle7.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Left\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> playerIdleRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle1.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle2.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle3.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle4.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle5.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle6.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle7.png"), sf::Texture("Assets\\Animations\\Player\\Idle\\Right\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> playerWalkUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk1.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk2.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk3.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk4.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk5.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk6.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk7.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Up\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> playerWalkDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk1.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk2.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk3.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk4.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk5.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk6.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk7.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Down\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> playerWalkLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk1.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk2.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk3.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk4.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk5.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk6.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk7.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Left\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> playerWalkRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk1.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk2.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk3.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk4.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk5.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk6.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk7.png"), sf::Texture("Assets\\Animations\\Player\\Walk\\Right\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> playerDeathUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death1.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death2.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death3.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death4.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death5.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death6.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death7.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Up\\Death8.png")}, 8 };
+    dynArray<sf::Texture> playerDeathDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death1.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death2.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death3.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death4.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death5.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death6.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death7.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Down\\Death8.png")}, 8 };
+    dynArray<sf::Texture> playerDeathLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death1.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death2.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death3.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death4.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death5.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death6.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death7.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Left\\Death8.png")}, 8 };
+    dynArray<sf::Texture> playerDeathRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death1.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death2.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death3.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death4.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death5.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death6.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death7.png"), sf::Texture("Assets\\Animations\\Player\\Death\\Right\\Death8.png")}, 8 };
+    animData.insert(playerIdleUp);
+    animData.insert(playerIdleDown);
+    animData.insert(playerIdleLeft);
+    animData.insert(playerIdleRight);
+    animData.insert(playerWalkUp);
+    animData.insert(playerWalkDown);
+    animData.insert(playerWalkLeft);
+    animData.insert(playerWalkRight);
+    animData.insert(playerDeathUp);
+    animData.insert(playerDeathDown);
+    animData.insert(playerDeathLeft);
+    animData.insert(playerDeathRight);
+    animNames.insert("PlayerIdleUp");
+    animNames.insert("PlayerIdleDown");
+    animNames.insert("PlayerIdleLeft");
+    animNames.insert("PlayerIdleRight");
+    animNames.insert("PlayerWalkUp");
+    animNames.insert("PlayerWalkDown");
+    animNames.insert("PlayerWalkLeft");
+    animNames.insert("PlayerWalkRight");
+    animNames.insert("PlayerDeathUp");
+    animNames.insert("PlayerDeathDown");
+    animNames.insert("PlayerDeathLeft");
+    animNames.insert("PlayerDeathRight");
 }
 
 template <typename T>
@@ -140,24 +232,25 @@ struct Animation {
     double timePerFrame;
     double totalTime;
     bool Loop = true;
-    std::vector<sf::Texture*> KeyFrames;
+    dynArray<sf::Texture*> KeyFrames;
     Animation() : timePerFrame(0.0), totalTime(0.0) {};
-    Animation(double time, std::string entityName, std::string animName, std::string variantName, bool loop = true) : timePerFrame(1.0 / time), Loop(loop) {
-        if (!animTextureCache.contains(entityName) || !animTextureCache[entityName].contains(animName) || !animTextureCache[entityName][animName].contains(variantName)) return;
-        std::vector<sf::Texture>& Data = animTextureCache[entityName][animName][variantName];
-        for (int i = 0; i < Data.size(); i += 1) {
-            KeyFrames.push_back(&Data[i]);
+    Animation(double time, std::string combinedName, bool loop = true) : timePerFrame(1.0 / time), Loop(loop) {
+        if (!animNames.contains(combinedName)) return;
+        int Index = animNames.find(combinedName);
+        dynArray<sf::Texture> &data = animData[Index];
+        for (int i = 0; i < data.size(); i += 1) {
+            KeyFrames.insert(&data[i]);
         }
         totalTime = KeyFrames.size() * (1.0 / time);
     };
-    Animation(double time, std::initializer_list<sf::Texture*> args, bool loop = true) : timePerFrame(1.0 / time), KeyFrames(args), totalTime(args.size()* (1.0 / time)), Loop(loop) {};
 };
 
 struct Animator {
     double Alpha = 0;
     double currentTime = 0.0;
     int spriteIndex = 0;
-    std::unordered_map<std::string, std::unordered_map<std::string, Animation>> Animations;
+    dynArray<Animation> animationsData;
+    dynArray<std::string> animationsName;
     std::string Anim = "";
     std::string Variant = "";
     std::string Entity = "";
@@ -168,22 +261,30 @@ struct Animator {
     Animator(std::string entityName, sf::Vector2i size = { 1, 1 }, double FPS = 30.0, sf::Vector2i offset = { 0, 0 }) {
         animSprite = sf::Sprite(defaultTexture, sf::IntRect(offset, size));
         Entity = entityName;
-        if (animTextureCache.contains(entityName)) {
-            for ( std::pair<const std::string, std::unordered_map<std::string, std::vector<sf::Texture>>>& i : animTextureCache[entityName]) {
-                for (std::pair<const std::string, std::vector<sf::Texture>>& ii : i.second) {
-                    Animations[i.first][ii.first] = Animation(FPS, entityName, i.first, ii.first, i.first != "Death");
-                }
+        for (int i = 0; i < animNames.size(); i += 1) {
+            if (animNames[i].starts_with(entityName)) {
+                animationsName.insert(animNames[i]);
+                animationsData.insert(Animation(FPS, animNames[i], !animNames[i].ends_with("Death")));
             }
         }
     };
     void addAnimation(std::string name, std::string variant, Animation data) {
-        Animations[name][variant] = data;
+        animationsName.insert(Entity + name + variant);
+        animationsData.insert(data);
     }
     void addAnimation(std::string name, std::string variant, double FPS = 30.0) {
-        Animations[name][variant] = Animation(FPS, Entity, name, variant);
+        animationsName.insert(Entity + name + variant);
+        animationsData.insert(Animation(FPS, Entity + name + variant));
     }
     void changeAnim(std::string anim, std::string variant) {
-        if (!Animations.contains(anim) || !Animations[anim].contains(variant)) return;
+        bool found = false;
+        for (int i = 0; i < animationsName.size(); i += 1) {
+            if (animationsName[i].starts_with(Entity + anim + variant)) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return;
         if (Anim == anim && Variant == variant) return;
         if (Anim != anim) {
             Anim = anim;
@@ -193,8 +294,17 @@ struct Animator {
     }
     void draw(sf::RenderWindow& window, sf::Vector2<double> position, sf::Vector2<double> spriteScale = {1.0, 1.0}) {
         sf::Texture* currentTexture = &defaultTexture;
-        if (Animations.contains(Anim) && Animations[Anim].contains(Variant)) {
-            Animation& data = Animations[Anim][Variant];
+        bool found = false;
+        int Idx = 0;
+        for (int i = 0; i < animationsName.size(); i += 1) {
+            if (animationsName[i].starts_with(Entity + Anim + Variant)) {
+                found = true;
+                Idx = i;
+                break;
+            }
+        }
+        if (found) {;
+            Animation& data = animationsData[Idx];
             currentTime = currentTime + deltaTime;
             if (currentTime >= data.totalTime && data.Loop) {
                 currentTime = 0.0;
@@ -461,7 +571,7 @@ int main()
     sf::VideoMode screenMode = sf::VideoMode::getFullscreenModes()[0];
     sf::RenderWindow window(sf::VideoMode(screenMode), "Withered Roots", sf::Style::Titlebar | sf::Style::Close);
     windowSize = sf::Vector2<int>(screenMode.size.x, screenMode.size.y);
-    initAnimDict();
+    initAnims();
     initTileMap();
     Player player{};
     player.bareMove((sf::Vector2<double>(screenMode.size.x / 2.0f - 25.0f, screenMode.size.y / 2.0f - 25.0f)));
