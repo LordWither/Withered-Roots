@@ -12,7 +12,10 @@ sf::Vector2<double> cameraPos = sf::Vector2<double>(0.0, 0.0);
 sf::Vector2<int> windowSize;
 sf::Vector2<double> playerPos{ 0.0, 0.0 };
 const int textureCount = 4;
+const int pickups = 4;
 sf::Texture textureData[textureCount] = {sf::Texture("Assets\\Grass.png"),sf::Texture("Assets\\Tree.png") ,sf::Texture("Assets\\Rocks.png") ,sf::Texture("Assets\\Bush.png") };
+sf::Texture pickUpTextures[pickups] = {sf::Texture("Assets\\Bandages.png"), sf::Texture("Assets\\Beans.png"), sf::Texture("Assets\\Cash.png"), sf::Texture("Assets\\Chocolate.png")};
+std::string pickupNames[pickups] = {"bandages", "beans", "cash", "chocolate"};
 char textureKeys[textureCount] = { 'G', 'T', 'R', 'B'};
 sf::Vector2<double> textureScales[textureCount] = { {1.0, 1.0},{1.0, 1.0},{0.6, 0.6},{0.7, 0.7} };
 bool textureAlwaysDrawsUnderPlayer[textureCount] = { false, false, true, false };
@@ -32,11 +35,15 @@ double fogStartDay = 450.0;
 double fogEndDay = 1300.0;
 double fogStartNight = fogStartDay * 0.9;
 double fogEndNight = fogEndDay * 0.9;
-double dayTime = 20.0;
-double nightTime = 120.0;
+double dayTime = 150.0;
+double nightTime = 200.0;
 double fogStart = 0.0;
 double fogEnd = 0.0;
 double gameTimer = 0.0;
+
+//Ghost logic
+bool sightRadius = 25 * tileSize;
+
 sf::Music Halloween1("Assets\\Halloween1.ogg");
 sf::Music Halloween2("Assets\\Halloween2.ogg");
 sf::Music Halloween3("Assets\\Halloween3.ogg");
@@ -615,6 +622,61 @@ struct Player {
     }
 };
 
+sf::Vector2<double> Lerp(sf::Vector2<double> Start, sf::Vector2<double> End, double alpha) {
+    return {
+        Start.x + (End.x - Start.x) * alpha,
+        Start.y + (End.y - Start.y) * alpha,
+    };
+}
+
+struct Pickup {
+    std::string type;
+    sf::Vector2<double> position = {0.0, 0.0};
+    sf::Vector2<int> size = {tileSize, tileSize};
+    sf::Vector2<double> scale = {0.6, 0.6};
+    sf::Sprite Sprite = sf::Sprite(*pickUpTextures, sf::IntRect({0, 0}, size));
+    double floatAlpha = 0.0;
+    double floatAnimSpeed = 2.0;
+    sf::Vector2<double> Top = { 0.0, 5.0 };
+    sf::Vector2<double> Bottom = { 0.0, -5.0 };
+    bool markforDelete = false;
+    int getIdx(std::string type) {
+        int returnIdx = -1;
+        for (int i = 0; i < pickups; i += 1) {
+            if (pickupNames[i] == type) {
+                returnIdx = i;
+                break;
+            }
+        }
+        return returnIdx;
+    }
+    Pickup() {};
+    Pickup(sf::Vector2<double> position, std::string type) : type(type), position(position) {
+        int Index = getIdx(type);
+        Sprite = sf::Sprite(pickUpTextures[Index], sf::IntRect({ 0, 0 }, size));
+    }
+    void draw(sf::RenderWindow& window) {
+        if (markforDelete) return;
+        Sprite.setScale(doubleToFloat(scale));
+        sf::Vector2<double> Final = position + cameraPos;
+        Sprite.setPosition(doubleToFloat(Lerp(Final, Final + Top, sin(floatAlpha))));
+        Sprite.setColor(colorTint);
+        window.draw(Sprite);
+    }
+    void Logic(Player &player) {
+        if (markforDelete) return;
+        floatAlpha = (floatAlpha + floatAnimSpeed * deltaTime);
+        while (floatAlpha > 360.0) {
+            floatAlpha -= 360.0;
+        }
+        if (Sprite.getGlobalBounds().findIntersection(player.animator.animSprite.getGlobalBounds())) {
+            markforDelete = true;
+            player.playerInv.addItem(type, 1);
+        }
+    }
+};
+dynArray<Pickup> pickUps;
+
 double rad(double self) {
     return self * (pi / 180);
 }
@@ -712,7 +774,7 @@ void drawMap(sf::RenderWindow& window, Player& player) {
         bool visX = (decor.position.x + cameraPos.x + tileSize) >= 0 && (decor.position.x + cameraPos.x) <= windowSize.x;
         bool visY = (decor.position.y + cameraPos.y + tileSize) >= 0 && (decor.position.y + cameraPos.y) <= windowSize.y;
         if (visX && visY) {
-            double playerDepth = player.position.y + ((double)player.trueSize.y * player.scale.y * 1.3);
+            double playerDepth = player.position.y + ((double)player.trueSize.y * player.scale.y * 1.275);
             double selfDepth = decor.position.y + cameraPos.y + (decor.size.y * decor.scale.y);
             if (decor.alwaysDrawUnderPlayer == true || playerDepth > selfDepth)
                 decor.draw(window, cameraPos);
@@ -724,11 +786,28 @@ void drawMap(sf::RenderWindow& window, Player& player) {
         bool visX = (decor.position.x + cameraPos.x + tileSize) >= 0 && (decor.position.x + cameraPos.x) <= windowSize.x;
         bool visY = (decor.position.y + cameraPos.y + tileSize) >= 0 && (decor.position.y + cameraPos.y) <= windowSize.y;
         if (visX && visY) {
-            double playerDepth = player.position.y + ((double)player.trueSize.y * player.scale.y * 1.3);
+            double playerDepth = player.position.y + ((double)player.trueSize.y * player.scale.y * 1.275);
             double selfDepth = decor.position.y + cameraPos.y + (decor.size.y * decor.scale.y);
             if (decor.alwaysDrawUnderPlayer == false && playerDepth < selfDepth)
                 decor.draw(window, cameraPos);
         }
+    }
+}
+
+void destroyPickups() {
+    for (int i = pickUps.size() - 1; i >= 0; i -= 1) {
+        pickUps[i].markforDelete = true;
+        pickUps.remove(i);
+    }
+}
+
+void makePickups() {
+    destroyPickups();
+    for (int i = 0; i < 200; i += 1) {
+        int ranX = random(0, 100);
+        int ranY = random(0, 100);
+        int ranType = random(0, pickups - 1);
+        pickUps.insert(Pickup{ {(double)ranX * (double)tileSize, (double)ranY * (double)tileSize}, pickupNames[ranType] });
     }
 }
 
@@ -746,6 +825,7 @@ int main()
     deltaTimer.start();
     dayTheme.setLooping(true);
     dayTheme.play();
+    makePickups();
     while (window.isOpen())
     {
         colorTint = dayTint;
@@ -793,6 +873,16 @@ int main()
         player.move(movementOffset, deltaTime);
         window.clear();
         drawMap(window, player);
+        for (int i = pickUps.size() - 1; i >= 0; i -= 1) {
+            //std::cout << pickUps[i].type << "\n";
+            pickUps[i].Logic(player);
+            if (pickUps[i].markforDelete) {
+                pickUps.remove(i);
+            }
+            else {
+                pickUps[i].draw(window);
+            }
+        }
         window.display();
     }
 }
