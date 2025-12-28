@@ -19,7 +19,11 @@ std::string pickupNames[pickups] = {"bandages", "beans", "cash", "chocolate"};
 char textureKeys[textureCount] = { 'G', 'T', 'R', 'B'};
 sf::Vector2<double> textureScales[textureCount] = { {1.0, 1.0},{1.0, 1.0},{0.6, 0.6},{0.7, 0.7} };
 bool textureAlwaysDrawsUnderPlayer[textureCount] = { false, false, true, false };
-sf::Music dayTheme("Assets\\DayTheme.ogg");
+
+sf::Texture ghostEyesTex{"Assets\\GhostEyes.png"};
+sf::Texture ghostSmokeTex{ "Assets\\GhostSmoke.png" };
+sf::Texture merchantShopTex("Assets\\Shop.png");
+
 const int worldSize = 100;
 const int tileSize = 100;
 sf::Color dayTint = sf::Color::Color(255, 200, 100, 255U);
@@ -27,6 +31,7 @@ sf::Color nightTint = sf::Color::Color(29, 89, 255, 255U);
 sf::Color colorTint = sf::Color::Color(255, 255, 255, 255U);
 sf::Color fogColor = sf::Color::Color(128, 128, 128, 255U);
 std::string Mode = "Day";
+const int pickUpCount = 200;
 double currentTime = 0.0f;
 double deltaTime = 0.0f;
 double combinedDeltaTime = 0.0f;
@@ -35,19 +40,26 @@ double fogStartDay = 450.0;
 double fogEndDay = 1300.0;
 double fogStartNight = fogStartDay * 0.9;
 double fogEndNight = fogEndDay * 0.9;
-double dayTime = 150.0;
+double dayTime = 10.0;
 double nightTime = 200.0;
 double fogStart = 0.0;
 double fogEnd = 0.0;
 double gameTimer = 0.0;
 
 //Ghost logic
-bool sightRadius = 25 * tileSize;
+double sightRadius = 3 * tileSize;
 
 sf::Music Halloween1("Assets\\Halloween1.ogg");
 sf::Music Halloween2("Assets\\Halloween2.ogg");
 sf::Music Halloween3("Assets\\Halloween3.ogg");
 sf::Music HalloweenGhost("Assets\\HalloweenGhost.wav");
+sf::Music purchase("Assets\\purchase.ogg");
+sf::Music dayTheme("Assets\\DayTheme.ogg");
+sf::Music pickup("Assets\\pickup.ogg");
+sf::Music chase("Assets\\chase.ogg");
+sf::Music error("Assets\\error.ogg");
+sf::Music death("Assets\\death.ogg");
+sf::Music hit("Assets\\hit.ogg");
 
 template<typename arrType>
 struct dynArray {
@@ -66,9 +78,13 @@ struct dynArray {
             return;
         }
         if (Core != nullptr) delete[] Core;
+        Core = new arrType[setLength];
+        for (int i = 0; i < setLength; i += 1) {
+            Core[i] = initialSet[i];
+        }
+        delete[] initialSet;
         length = setLength;
         occupiedLength = setLength;
-        Core = initialSet;
     }
     void resize(int newSize) {
         length = newSize;
@@ -196,6 +212,7 @@ void initAnims() {
     dynArray<sf::Texture> charFDeathDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death8.png")}, 8 };
     dynArray<sf::Texture> charFDeathLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death8.png")}, 8 };
     dynArray<sf::Texture> charFDeathRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death8.png")}, 8 };
+    dynArray<sf::Texture> merchant = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Merchant\\Merchant1.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant2.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant3.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant4.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant5.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant6.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant7.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant8.png")}, 8};
     animData.insert(charMIdleUp);
     animData.insert(charMIdleDown);
     animData.insert(charMIdleLeft);
@@ -220,6 +237,7 @@ void initAnims() {
     animData.insert(charFDeathDown);
     animData.insert(charFDeathLeft);
     animData.insert(charFDeathRight);
+    animData.insert(merchant);
     animNames.insert("CharMIdleUp");
     animNames.insert("CharMIdleDown");
     animNames.insert("CharMIdleLeft");
@@ -244,6 +262,7 @@ void initAnims() {
     animNames.insert("CharFDeathDown");
     animNames.insert("CharFDeathLeft");
     animNames.insert("CharFDeathRight");
+    animNames.insert("Merchant");
 }
 
 template <typename T>
@@ -274,16 +293,17 @@ sf::Color setTransparency(sf::Color self, double transparency) {
 }
 
 bool FuzzyEq(sf::Vector2<double> self, sf::Vector2<double> other, double epsilon = 1e-5) {
-    return (abs(self.x - other.x) <= epsilon && abs(self.y - other.y) <= epsilon);
+    return (std::abs(self.x - other.x) <= epsilon && std::abs(self.y - other.y) <= epsilon);
 }
 
 struct Animation {
     double timePerFrame;
     double totalTime;
     bool Loop = true;
+    std::string combinedName;
     dynArray<sf::Texture*> KeyFrames;
     Animation() : timePerFrame(0.0), totalTime(0.0) {};
-    Animation(double time, std::string combinedName, bool loop = true) : timePerFrame(1.0 / time), Loop(loop) {
+    Animation(double time, std::string combinedName, bool loop = true) : timePerFrame(1.0 / time), Loop(loop), combinedName(combinedName) {
         if (!animNames.contains(combinedName)) return;
         int Index = animNames.find(combinedName);
         dynArray<sf::Texture> &data = animData[Index];
@@ -334,7 +354,7 @@ struct Animator {
     };
     void addAnimation(std::string name, std::string variant, Animation data) {
         animationsName.insert(Entity + name + variant);
-        animationsData.insert(data);
+        animationsData.insert(Animation{1.0 / data.timePerFrame, data.combinedName, data.Loop});
     }
     void addAnimation(std::string name, std::string variant, double FPS = 30.0) {
         animationsName.insert(Entity + name + variant);
@@ -356,7 +376,7 @@ struct Animator {
         }
         Variant = variant;
     }
-    void draw(sf::RenderWindow& window, sf::Vector2<double> position, sf::Vector2<double> spriteScale = {1.0, 1.0}) {
+    void draw(sf::RenderWindow& window, sf::Vector2<double> position, sf::Vector2<double> spriteScale = { 1.0, 1.0 }, sf::Color customTint = sf::Color(255, 255, 255, 255)) {
         sf::Texture* currentTexture = &defaultTexture;
         bool found = false;
         int Idx = 0;
@@ -381,11 +401,11 @@ struct Animator {
             currentTexture = data.KeyFrames[index];
         }
         animSprite.setTexture(*currentTexture);
-        animSprite.setColor(Lerp(sf::Color::Color(255, 255, 255, 255), colorTint, 0.5));
         if (!FuzzyEq(scale, spriteScale)) {
             scale = spriteScale;
             animSprite.setScale(doubleToFloat(scale));
         }
+        animSprite.setColor(Multiply(Lerp(sf::Color::Color(255, 255, 255, 255), colorTint, 0.5), customTint));
         animSprite.setPosition(doubleToFloat(position));
         window.draw(animSprite);
     }
@@ -396,22 +416,27 @@ struct grassTile {
     sf::Vector2<int> originalPosition = { 0, 0 };
     sf::Vector2<double> position = { 0.0, 0.0 };
     sf::Sprite Sprite = sf::Sprite(*textureData, sf::IntRect({ 0, 0 }, {tileSize, tileSize}));
-    bool fogIsLinked = false;
+    bool isEmpty = true;
+    bool isBlocked = false;
+    double F = 0.0;
+    double G = 0.0;
+    double H = 0.0;
     grassTile() {}
-    grassTile(sf::Vector2<int> iPosition, sf::Vector2<double> dPosition, bool fogIsLinked = false) : originalPosition(iPosition), position(dPosition), fogIsLinked(fogIsLinked) {}
-    void draw(sf::RenderWindow& window, sf::Vector2<double> cameraPos) {
-        sf::Vector2<double> playerCentre = playerPos + sf::Vector2<double>(50.0, 50.0);
-        sf::Vector2<double> fogCentre = (position + cameraPos) + (sf::Vector2<double>((double)tileSize, (double)tileSize) / 2.0);
+    grassTile(sf::Vector2<int> iPosition, sf::Vector2<double> dPosition, bool fogIsLinked = false) : originalPosition(iPosition), position(dPosition) {}
+    void draw(sf::RenderWindow& window) {
         Sprite.setColor(colorTint);
         Sprite.setPosition(doubleToFloat(position + cameraPos));
         window.draw(Sprite);
+    }
+    void drawFog(sf::RenderWindow& window) {
+        sf::Vector2<double> playerCentre = playerPos + sf::Vector2<double>(50.0, 50.0);
+        sf::Vector2<double> fogCentre = (position + cameraPos) + (sf::Vector2<double>((double)tileSize, (double)tileSize) / 2.0);
         double dist = (fogCentre - playerCentre).length();
         if (dist > fogStart) {
             dist -= fogStart;
             fog.setFillColor(setTransparency(Multiply(fogColor, colorTint, 0.3), std::clamp(dist / fogEnd, 0.0, 1.0)));
             fog.setPosition(doubleToFloat(position + cameraPos));
-            if (!fogIsLinked)
-                window.draw(fog);
+            window.draw(fog);
         }
     }
 };
@@ -425,9 +450,8 @@ struct mapDecor {
     bool alwaysDrawUnderPlayer = *textureAlwaysDrawsUnderPlayer;
     char type = *textureKeys;
     sf::Sprite Sprite = sf::Sprite(*textureData, sf::IntRect({ 0, 0 }, { tileSize, tileSize}));
-    sf::RectangleShape* fog = nullptr;
-    mapDecor() : fog(nullptr) {}
-    mapDecor(sf::Vector2<int> originalPosition, sf::Vector2<double> position, sf::RectangleShape* fog, char type) : originalPosition(originalPosition), position(position), fog(fog), type(type) {
+    mapDecor() {}
+    mapDecor(sf::Vector2<int> originalPosition, sf::Vector2<double> position, sf::RectangleShape* fog, char type) : originalPosition(originalPosition), position(position), type(type) {
         int foundIdx = -1;
         for (int i = 0; i < textureCount; i += 1) {
             if (textureKeys[i] == type) {
@@ -440,22 +464,13 @@ struct mapDecor {
         scale = textureScales[foundIdx];
         alwaysDrawUnderPlayer = textureAlwaysDrawsUnderPlayer[foundIdx];
     }
-    void draw(sf::RenderWindow& window, sf::Vector2<double> cameraPos) {
+    void draw(sf::RenderWindow& window) {
         sf::Vector2<double> playerCentre = playerPos + sf::Vector2<double>(50.0, 50.0);
         sf::Vector2<double> fogCentre = (position + cameraPos) + (sf::Vector2<double>((double)tileSize, (double)tileSize) / 2.0);
         Sprite.setScale(sf::Vector2f(scale.x, scale.y));
         Sprite.setColor(colorTint);
         Sprite.setPosition(doubleToFloat(position + cameraPos));
         window.draw(Sprite);
-        if (fog) {
-            double dist = (fogCentre - playerCentre).length();
-            if (dist > fogStart) {
-                dist -= fogStart;
-                (*fog).setFillColor(setTransparency(Multiply(fogColor, colorTint, 0.3), std::clamp(dist / fogEnd, 0.0, 1.0)));
-                (*fog).setPosition(doubleToFloat(position + cameraPos));
-                window.draw(*fog);
-            }
-        }
     }
 };
 
@@ -464,7 +479,7 @@ sf::Color getRanColor(){
 }
 
 grassTile tileMap[worldSize][worldSize];
-dynArray<mapDecor>decorMap = {true};
+dynArray<mapDecor>decorMap = {};
 void initTileMap() {
     std::ifstream map("Map.txt");
     std::string currentLine;
@@ -476,6 +491,11 @@ void initTileMap() {
             }
             else {
                 tileMap[y][x] = { sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), true};
+                grassTile& tile = tileMap[y][x];
+                tile.isEmpty = false;
+                if (currentLine[x] == 'S' || currentLine[x] == 'T') {
+                    tile.isBlocked = true;
+                }
                 decorMap.insert({sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), &tileMap[y][x].fog, currentLine[x]});
             }
         }
@@ -502,7 +522,7 @@ sf::Vector2<double> snapToGrid(sf::Vector2<double> position) {
 }
 
 bool FuzzyEq(double self, double other, double epsilon = 1e-5) {
-    return (abs(self - other) <= epsilon);
+    return (std::abs(self - other) <= epsilon);
 }
 
 struct Inventory {
@@ -538,9 +558,12 @@ struct Inventory {
 
 struct Player {
     sf::Vector2<int> size = { 48, 64 };
-    sf::Vector2<int> trueSize = { 16, 32 };
+    sf::Vector2<int> sizeBias = { - 48 + 16, - 64 + 32 };
+    sf::Vector2<int> offsetBias = {-3, -10};
+    sf::Vector2<int> offset = { (48 - size.x) / 2 + 2, (64 - size.y) / 2 + 1 };
     sf::Vector2<double> scale = {2.5, 2.5};
     sf::Vector2<double> position = { 0.0f, 0.0f };
+    sf::Vector2<int> offsetPos = { 48 - 16 / 2, 64 - 32 / 2 };
     double Health = 100.0;
     std::string Gender = random(1, 2) == 1 ? "CharM" : "CharF";
     std::string Anim = "Idle";
@@ -551,12 +574,21 @@ struct Player {
     sf::Vector2<double> boundsMax = sf::Vector2<double>(windowSize.x * 0.7, windowSize.y * 0.7);
     sf::Vector2<double> boundsMin = sf::Vector2<double>(windowSize.x * 0.3, windowSize.y * 0.3);;
     sf::Color color = sf::Color::Color(255, 255, 255, 255U);
-    Animator animator = Animator(Gender, size, speedToAnimFPSRatio * speed);
+    Animator animator = Animator(Gender, size, speedToAnimFPSRatio * speed, offset);
+    double hitTimer = 0.0;
+    double hitCooldown = 0.5;
+    bool dead = false;
     Player() {
         playerInv.randomize();
         animator.Anim = Anim;
         animator.Variant = animVariant + (playerInv.holdingGun ? "Gun" : "");
     } //Keeping here in case I wanna init add code, causes no issues if I leave it here
+    sf::Vector2<double> getSize() {
+        return sf::Vector2<double>((double)(size.x + sizeBias.x + offsetBias.x) * scale.x, (double)(size.y + sizeBias.y + offsetBias.y) * scale.y);
+    }
+    sf::Vector2<double> getPosition() {
+        return sf::Vector2<double>(position.x + offsetPos.x, position.y + offsetPos.y);
+    }
     void bareMove(sf::Vector2<double> newPosition) {
         position = newPosition;
         playerPos = newPosition;
@@ -573,6 +605,7 @@ struct Player {
     void move(sf::Vector2<double> offset, double deltaTime) {
         if (Health <= 0.0) {
             if (Anim != "Death") {
+                dead = true;
                 changeAnim("Death", animVariant);
             }
             return;
@@ -614,13 +647,562 @@ struct Player {
     }
     void draw(sf::RenderWindow &window) {
         animator.draw(window, position, scale);
-        //Health -= (10.0 * deltaTime);
     }
     void equipGun(bool equip) {
         equip ? playerInv.equipGun() : playerInv.unEquipGun();
         changeAnim(Anim, animVariant);
     }
 };
+
+struct Merchant {
+    sf::Vector2<int> size = {tileSize, tileSize};
+    sf::Vector2<double> spriteScale = { 2.0, 2.0 };
+    sf::Vector2<double> scale = { 1.0, 1.0 };
+    sf::Vector2<double> position = { 0.0, 0.0 };
+    sf::Vector2<double> spriteOffset = { 10.0, -15.0 };
+    sf::Vector2<double> spritePosition = { spriteOffset.x, spriteOffset.y };
+    double animFPS = 5.0 / 200.0 * 250.0;
+    sf::Color color = sf::Color::Color(255, 255, 255, 255U);
+    sf::Sprite shop{ merchantShopTex, sf::IntRect({0, 0}, size) };
+    Animator animator = Animator("Merchant", { 48, 64 }, animFPS, {0, 0});
+    double hitTimer = 0.0;
+    double hitCooldown = 0.5;
+    Merchant() {
+        animator.Anim = "";
+        animator.Variant = "";
+    } //Keeping here in case I wanna init add code, causes no issues if I leave it here
+    sf::Vector2<double> getSize() {
+        return sf::Vector2<double>(size.x, size.y);
+    }
+    sf::Vector2<double> getWorldPosition() {
+        return sf::Vector2<double>(position.x + cameraPos.x, position.y + cameraPos.y);
+    }
+    bool collidingWithPlayer(Player& player) {
+        return (
+            getWorldPosition().x < player.getPosition().x + player.getSize().x &&
+            getWorldPosition().x + getSize().x > player.getPosition().x &&
+            getWorldPosition().y < player.getPosition().y + player.getSize().y &&
+            getWorldPosition().y + getSize().y > player.getPosition().y
+            );
+    }
+    void move(sf::Vector2<double> newPos) {
+        position = newPos;
+        spritePosition = newPos + spriteOffset;
+    }
+    void draw(sf::RenderWindow& window) {
+        if (Mode != "Night") {
+            animator.draw(window, spritePosition + cameraPos, spriteScale);
+        }
+        shop.setPosition(doubleToFloat(getWorldPosition()));
+        shop.setScale(doubleToFloat(scale));
+        shop.setColor(colorTint);
+        window.draw(shop);
+    }
+};
+
+struct Ghost {
+    sf::Vector2<int> size = { 40, 40 };
+    sf::Vector2<double> scale = { 1, 1 };
+    sf::Vector2<double> position = { 0.0, 0.0 };
+    std::string state = "Wander";
+    double Health = 100.0;
+    double speed = 300.0;
+    sf::Color color = sf::Color::Color(255, 255, 255, 255U);
+    sf::Sprite ghostEyes = sf::Sprite(ghostEyesTex);
+    static const int smokeAmount = 4;
+    int correctedSmokeAmount = smokeAmount;
+    double orbitRadius = 12.0;
+    double orbitSpeed = 5.0;
+    double orbitAlpha = 0.0;
+    sf::Sprite smoke = sf::Sprite(ghostSmokeTex);
+    sf::Vector2<double> wanderTarget = { 0.0, 0.0 };
+    double wanderTimer = 0.0;
+    double wanderInterval = 2.5;
+    double damage = 25.0;
+    sf::Vector2<double> getSize() {
+        return sf::Vector2<double>((double)(size.x) * scale.x, (double)(size.y) * scale.y);
+    }
+    Ghost() {
+        correctedSmokeAmount = smokeAmount;
+        if (correctedSmokeAmount % 2 != 0) {
+            correctedSmokeAmount -= 1;
+        }
+    }
+    void move(sf::Vector2<double> newPosition) {
+        position = newPosition;
+    }
+    sf::Vector2<double> getWorldPosition() {
+        return position + cameraPos;
+    }
+    void animate(sf::RenderWindow& window) {
+        orbitAlpha = orbitAlpha + orbitSpeed * deltaTime;
+        while (orbitAlpha > 360.0) {
+            orbitAlpha -= 360.0;
+        }
+        int increment = 360 / correctedSmokeAmount;
+        for (int i = 0; i < correctedSmokeAmount; i += 1) {
+            double angleRad = (increment * i) * pi / 180.0;
+            smoke.setPosition(
+                doubleToFloat(sf::Vector2<double>(
+                    (sin(angleRad + orbitAlpha) * orbitRadius) + getWorldPosition().x,
+                    (cos(angleRad + orbitAlpha) * orbitRadius) + getWorldPosition().y
+                )
+                ));
+            window.draw(smoke);
+        }
+    }
+    void moveTo(sf::Vector2<double> targetPos) {
+        if (Mode != "Night") return;
+        sf::Vector2<double> directionVector = targetPos - (getWorldPosition());
+        if (directionVector.x == 0 && directionVector.y == 0) return;
+        if (directionVector.length() > getSize().length() / 2.0) {
+            position += directionVector.normalized() * deltaTime * speed;
+        }
+    }
+    void pickWanderTarget(sf::Vector2<double> targetPos) {
+        sf::Vector2<double> ghostPosRef = getWorldPosition();
+
+        sf::Vector2<double> toPlayer = targetPos - ghostPosRef;
+        if (toPlayer.length() == 0.0) return;
+
+        sf::Vector2<double> dir = toPlayer.normalized();
+
+        double rand01 = (double)(rand() % 2001 - 1000) / 1000.0;
+        double angle = rand01 * (pi / 4.0);
+
+        double cosBias = cos(angle);
+        double sinBias = sin(angle);
+
+        sf::Vector2<double> biasedDir = {
+            dir.x * cosBias - dir.y * sinBias,
+            dir.x * sinBias + dir.y * cosBias
+        };
+
+        // Distance toward player
+        double dist = (double)(3 + rand() % 4) * tileSize;
+
+        wanderTarget = getWorldPosition() + biasedDir * dist;
+    }
+    void wander(sf::Vector2<double> targetPos) {
+        wanderTimer += deltaTime;
+
+        if (wanderTimer >= wanderInterval) {
+            wanderTimer = 0.0;
+            pickWanderTarget(targetPos);
+        }
+
+        sf::Vector2<double> dir = wanderTarget - getWorldPosition();
+        if (dir.length() > 1.0) {
+            position += dir.normalized() * speed * 0.5 * deltaTime;
+        }
+    }
+    void Logic(sf::Vector2<double> targetPos) {
+        if (Mode != "Night") return; // avoid operations during the day
+        if (FuzzyEq(targetPos, { 0.0, 0.0 })) return;
+        if ((targetPos - getWorldPosition()).length() <= sightRadius && state != "Recover") {
+            if (state != "Chase") {
+                state = "Chase";
+                chase.setPlayingOffset(sf::Time());
+            }
+        }
+        else if (state != "Recover") {
+            state = "Wander";
+        }
+        if (Health <= 0.0) {
+            state = "Recover";
+        }
+        if (Health >= 100.0 && state == "Recover") {
+            state = "Wander";
+        }
+        if (state == "Chase") {
+            chase.setVolume(100.0f);
+            moveTo(targetPos);
+        }
+        else if (state == "Wander") {
+            //Randomly walk to a tile, random should be weighted towards the player position, intention is, that even if the ghost is placed on the furthest corner of the map, it can reach the player during the night
+            wander(targetPos);
+            chase.setVolume(0.0f);
+        }
+        else {
+            chase.setVolume(0.0f);
+            Health = std::min(Health + 10.0 * deltaTime, 100.0);
+        }
+        
+    }
+    void draw(sf::RenderWindow& window, Player& player) {
+        if (Mode != "Night") return;
+        if (state == "recover") return;
+        ghostEyes.setPosition(doubleToFloat(position + cameraPos));
+        animate(window);
+        window.draw(ghostEyes);
+    }
+};
+
+bool playerCollidingWithGhost(Player& player, Ghost& ghost) {
+    return (
+        ghost.getWorldPosition().x < player.getPosition().x + player.getSize().x &&
+        ghost.getWorldPosition().x + ghost.getSize().x > player.getPosition().x &&
+        ghost.getWorldPosition().y < player.getPosition().y + player.getSize().y &&
+        ghost.getWorldPosition().y + ghost.getSize().y > player.getPosition().y
+        );
+}
+void takeDamage(Player& player, Ghost& ghost) {
+    if (Mode == "Day") return;
+    if (playerCollidingWithGhost(player, ghost) && player.dead != true) { // Always running even if idle
+        player.hitTimer = std::max(player.hitTimer - deltaTime, 0.0);
+        if (player.hitTimer <= 0.0) {
+            hit.play();
+            player.Health = std::max(player.Health - ghost.damage, 0.0);
+            if (player.Health <= 0.0) {
+                death.play();
+            }
+            player.hitTimer = player.hitCooldown;
+        }
+    }
+}
+
+struct Bullet {
+    bool active = false;
+    sf::Vector2<double> position = { 0.0, 0.0 };
+    sf::Vector2<double> velocity = { 0.0, 0.0 };
+
+    double speed = 1200.0;
+    double lifetime = 1.5;
+    double age = 0.0;
+
+    double radius = 2.0;
+    double damage = 5.0;
+    Bullet() {}
+    Bullet(sf::Vector2<double> startPos, sf::Vector2<double> dir) {
+        active = true;
+        position = startPos;
+        velocity = dir.normalized() * speed;
+        age = 0.0;
+    }
+
+    sf::Vector2<double> getWorldPosition() {
+        return position;
+    }
+
+    sf::Vector2<double> getSize() {
+        double d = radius * 2.0;
+        return { d, d };
+    }
+
+    bool collidesWithGhost(Ghost& ghost) {
+        sf::Vector2<double> aPos = getWorldPosition();
+        sf::Vector2<double> aSize = getSize();
+        sf::Vector2<double> bPos = ghost.getWorldPosition();
+        sf::Vector2<double> bSize = ghost.getSize();
+
+        return (
+            aPos.x < bPos.x + bSize.x &&
+            aPos.x + aSize.x > bPos.x &&
+            aPos.y < bPos.y + bSize.y &&
+            aPos.y + aSize.y > bPos.y
+            );
+    }
+
+    void update(Ghost& ghost) {
+        if (!active) return;
+
+        age += deltaTime;
+        if (collidesWithGhost(ghost)) {
+            active = false;
+            ghost.Health = std::max(ghost.Health - 10.0, 0.0);
+            return;
+        }
+        if (age >= lifetime) {
+            active = false;
+            return;
+        }
+
+        position += velocity * deltaTime;
+    }
+
+    void draw(sf::RenderWindow& window) {
+        if (!active) return;
+
+        sf::CircleShape c(radius);
+        c.setFillColor(sf::Color::Yellow);
+        c.setPosition(doubleToFloat(position));
+        window.draw(c);
+    }
+};
+dynArray<Bullet> Bullets = {};
+
+void spawnBullet(sf::Vector2<double> startPos, sf::Vector2<double> dir) {
+    Bullets.insert({startPos, dir});
+}
+
+struct Mercenary {
+    sf::Vector2<int> size = { 48, 64 };
+    sf::Vector2<int> sizeBias = { -48 + 16, -64 + 32 };
+    sf::Vector2<int> offsetBias = { -3, -10 };
+    sf::Vector2<int> offset = { (48 - size.x) / 2 + 2, (64 - size.y) / 2 + 1 };
+    sf::Vector2<double> scale = { 2.5, 2.5 };
+    sf::Vector2<double> position = { 0.0, 0.0 };
+    sf::Vector2<int> offsetPos = { 48 - 16 / 2, 64 - 32 / 2 };
+
+    double Health = 100.0;
+    bool hired = false;
+
+    std::string Gender = random(1, 2) == 1 ? "CharM" : "CharF";
+    std::string Anim = "Idle";
+    std::string animVariant = "Down";
+    std::string state = "Idle";
+
+    double speed = 250.0;
+    double speedToAnimFPSRatio = 5.0 / 200.0;
+
+    Inventory mercInv;
+    Animator animator = Animator(Gender, size, speedToAnimFPSRatio * speed, offset);
+
+    Ghost* targetGhost = nullptr;
+    int followIndex = 0;
+    double followSpacing = 28.0;
+    double moveDeadzone = 6.0;
+
+    double fireTimer = 0.0;
+    bool dead = false;
+    double deathTimer = 0.0;
+    double corpseLifetime = 15.0;
+    bool markforDelete = false;
+    double hitTimer = 0.0;
+    double hitCooldown = 0.5;
+    Mercenary() {
+        mercInv.randomize();
+        animator.Anim = Anim;
+        animator.Variant = animVariant + (mercInv.holdingGun ? "Gun" : "");
+    }
+    sf::Vector2<double> getSize() {
+        return sf::Vector2<double>(
+            (size.x + sizeBias.x + offsetBias.x) * scale.x,
+            (size.y + sizeBias.y + offsetBias.y) * scale.y
+        );
+    }
+    sf::Vector2<double> getBiasedWorldPosition() {
+        return sf::Vector2<double>(position.x + offsetPos.x + cameraPos.x, position.y + offsetPos.y + cameraPos.y);
+    }
+    sf::Vector2<double> getWorldPosition() {
+        return position + cameraPos;
+    }
+
+    void changeAnim(std::string anim, std::string variant) {
+        Anim = anim;
+        animVariant = variant;
+        animator.changeAnim(anim, variant + ((mercInv.holdingGun && anim != "Death") ? "Gun" : ""));
+    }
+
+    void trueMove(sf::Vector2<double> offset) {
+        position += offset;
+    }
+    void bareMove(sf::Vector2<double> offset) {
+        position = offset;
+    }
+    Mercenary(sf::Vector2<double> initialPos, bool hired = false, int followIndex = 0) : hired(hired), followIndex(followIndex) {
+        bareMove(initialPos + cameraPos + getSize() / 2.0);
+    }
+    void move(sf::Vector2<double> dir) {
+        if (Health <= 0.0) return;
+
+        if (FuzzyEq(dir, { 0.0, 0.0 })) {
+            if (Anim != "Idle") {
+                changeAnim("Idle", animVariant);
+            }
+            return;
+        }
+
+        dir = dir.normalized();
+        sf::Vector2<double> offset = dir * speed * deltaTime;
+
+        if (!FuzzyEq(offset.x, 0.0)) {
+            changeAnim("Walk", offset.x < 0 ? "Left" : "Right");
+        }
+        else {
+            changeAnim("Walk", offset.y < 0 ? "Up" : "Down");
+        }
+        trueMove(offset);
+    }
+
+    void followPlayer(Player& player) {
+        // Direction player is facing
+        sf::Vector2<double> backDir = { 0.0, 1.0 }; // default Down
+
+        if (animVariant == "Up")    backDir = { 0.0, 1.0 };
+        if (animVariant == "Down")  backDir = { 0.0, -1.0 };
+        if (animVariant == "Left")  backDir = { 1.0, 0.0 };
+        if (animVariant == "Right") backDir = { -1.0, 0.0 };
+
+        // Target position behind player
+        sf::Vector2<double> target =
+            player.getPosition() +
+            backDir * (followSpacing * (followIndex + 1));
+
+        sf::Vector2<double> toTarget =
+            target - getWorldPosition();
+
+        double dist = toTarget.length();
+
+        // --- DEADZONE ---
+        if (dist <= moveDeadzone) {
+            if (Anim != "Idle") {
+                changeAnim("Idle", animVariant);
+            }
+            return;
+        }
+
+        // Movement
+        sf::Vector2<double> dir = toTarget.normalized();
+        sf::Vector2<double> offset = dir * speed * deltaTime;
+
+        // Animation direction
+        if (FuzzyEq(offset, { 0.0, 0.0 })) {
+            changeAnim("Idle", animVariant);
+        }
+        else if (!FuzzyEq(offset.x, 0.0)) {
+            changeAnim("Walk", offset.x < 0 ? "Left" : "Right");
+        }
+        else {
+            changeAnim("Walk", offset.y < 0 ? "Up" : "Down");
+        }
+
+        trueMove(offset);
+    }
+
+
+    void acquireTarget(Ghost& ghost) {
+        if (ghost.Health <= 0.0) return;
+
+        double dist =
+            (ghost.getWorldPosition() - getWorldPosition()).length();
+
+        if (dist < 10 * tileSize) {
+            targetGhost = &ghost;
+            state = "Combat";
+        }
+    }
+
+    void combat(Player& player) {
+        if (!targetGhost || (*targetGhost).Health <= 0.0) {
+            targetGhost = nullptr;
+            state = "Follow";
+            return;
+        }
+
+        sf::Vector2<double> toGhost = (*targetGhost).getWorldPosition() - getBiasedWorldPosition();
+
+        if (std::abs(toGhost.x) > std::abs(toGhost.y))
+            changeAnim("Idle", toGhost.x < 0 ? "Left" : "Right");
+        else
+            changeAnim("Idle", toGhost.y < 0 ? "Up" : "Down");
+
+        fireTimer = std::max(fireTimer - deltaTime, 0.0);
+        if (FuzzyEq(fireTimer, 0.0)) {
+            fireTimer = (double)random(5, 10) / 10.0;
+            spawnBullet(
+                getBiasedWorldPosition() + getSize() / 2.0,
+                toGhost.normalized()
+            );
+        }
+
+        followPlayer(player);
+    }
+
+    void handleDeath() {
+        if (state != "Dead") {
+            state = "Dead";
+            dead = true;
+            changeAnim("Death", animVariant);
+            deathTimer = 0.0;
+        }
+        deathTimer += deltaTime;
+        if (deathTimer >= corpseLifetime) {
+            markforDelete = true;
+        }
+    }
+    bool collidingWithGhost(Ghost& ghost) {
+        return (
+            ghost.getWorldPosition().x < getBiasedWorldPosition().x + getSize().x &&
+            ghost.getWorldPosition().x + ghost.getSize().x > getBiasedWorldPosition().x &&
+            ghost.getWorldPosition().y < getBiasedWorldPosition().y + getSize().y &&
+            ghost.getWorldPosition().y + ghost.getSize().y > getBiasedWorldPosition().y
+            );
+    }
+    void takeDamage(Ghost& ghost) {
+        if (Mode == "Day") return;
+        if (collidingWithGhost(ghost) && dead != true) { // Always running even if idle
+            hitTimer = std::max(hitTimer - deltaTime, 0.0);
+            if (hitTimer <= 0.0) {
+                hit.play();
+                Health = std::max(Health - ghost.damage, 0.0);
+                if (Health <= 0.0) {
+                    death.play();
+                }
+                hitTimer = hitCooldown;
+            }
+        }
+    }
+
+    void Logic(Player& player, Ghost& ghost) {
+        takeDamage(ghost);
+        if (Health <= 0.0) {
+            handleDeath();
+            return;
+        }
+
+        if (!hired) return;
+        acquireTarget(ghost);
+        if (state == "Combat")
+            combat(player);
+        else {
+            state = "Follow";
+            followPlayer(player);
+        }
+    }
+
+    void draw(sf::RenderWindow& window) {
+        animator.draw(window, getWorldPosition(), scale);
+    }
+};
+dynArray<Mercenary> mercenaries = {};
+
+sf::Vector2<double> getClosestTarget(Ghost& ghost, Player& player) {
+    int size = mercenaries.size();
+    sf::Vector2<double>* positions = new sf::Vector2<double>[size + 1];
+    int occupied = 0;
+    for (int i = 0; i < size; i += 1) {
+        Mercenary& mercenary = mercenaries[i];
+        if (!mercenary.dead) {
+            positions[occupied] = mercenary.getBiasedWorldPosition();
+            occupied += 1;
+        }
+    }
+    if (!player.dead) {
+        positions[occupied] = player.getPosition();
+        occupied += 1;
+    }
+    double closestDist;
+    sf::Vector2<double> closestPos;
+    bool firstInit = true;
+    for (int i = 0; i < occupied; i += 1) {
+        sf::Vector2<double> pos = positions[i] - ghost.getWorldPosition();
+        double dist = 0.0;
+        if (FuzzyEq(pos, { 0.0, 0.0 })) {
+            dist = 0.0;
+        }
+        else {
+            dist = pos.length();
+        }
+        if (firstInit || dist < closestDist) {
+            firstInit = false;
+            closestDist = dist;
+            closestPos = positions[i];
+        }
+    }
+    delete[] positions;
+    return closestPos;
+}
 
 sf::Vector2<double> Lerp(sf::Vector2<double> Start, sf::Vector2<double> End, double alpha) {
     return {
@@ -633,12 +1215,13 @@ struct Pickup {
     std::string type;
     sf::Vector2<double> position = {0.0, 0.0};
     sf::Vector2<int> size = {tileSize, tileSize};
-    sf::Vector2<double> scale = {0.6, 0.6};
+    sf::Vector2<double> scale = {0.4, 0.4};
     sf::Sprite Sprite = sf::Sprite(*pickUpTextures, sf::IntRect({0, 0}, size));
     double floatAlpha = 0.0;
     double floatAnimSpeed = 2.0;
     sf::Vector2<double> Top = { 0.0, 5.0 };
     sf::Vector2<double> Bottom = { 0.0, -5.0 };
+    grassTile* associatedTile = nullptr;
     bool markforDelete = false;
     int getIdx(std::string type) {
         int returnIdx = -1;
@@ -650,18 +1233,31 @@ struct Pickup {
         }
         return returnIdx;
     }
-    Pickup() {};
-    Pickup(sf::Vector2<double> position, std::string type) : type(type), position(position) {
+    Pickup() : associatedTile(nullptr) {};
+    void assign(sf::Vector2<double> Position, std::string Type, grassTile *AssociatedTile) {
+        associatedTile = AssociatedTile;
+        type = Type;
+        position = { Position.x + (size.x * scale.x) / 2, Position.y + (size.y * scale.y) / 2 };
         int Index = getIdx(type);
-        Sprite = sf::Sprite(pickUpTextures[Index], sf::IntRect({ 0, 0 }, size));
+        Sprite.setTexture(pickUpTextures[Index]);
+
     }
     void draw(sf::RenderWindow& window) {
         if (markforDelete) return;
         Sprite.setScale(doubleToFloat(scale));
         sf::Vector2<double> Final = position + cameraPos;
-        Sprite.setPosition(doubleToFloat(Lerp(Final, Final + Top, sin(floatAlpha))));
+        Sprite.setPosition(doubleToFloat(Lerp(Final, Final + Top, sin(floatAlpha * pi / 180.0))));
         Sprite.setColor(colorTint);
         window.draw(Sprite);
+    }
+    bool isCollidingWithPlayer(Player& player) {
+        sf::Vector2<double> playerSize = player.getSize();
+        return (
+            position.x + cameraPos.x < player.getPosition().x + playerSize.x &&
+            position.x + cameraPos.x + (size.x * scale.x) > player.getPosition().x &&
+            position.y + cameraPos.y < player.getPosition().y + playerSize.y &&
+            position.y + cameraPos.y + (size.y * scale.y) > player.getPosition().y
+            );
     }
     void Logic(Player &player) {
         if (markforDelete) return;
@@ -669,13 +1265,14 @@ struct Pickup {
         while (floatAlpha > 360.0) {
             floatAlpha -= 360.0;
         }
-        if (Sprite.getGlobalBounds().findIntersection(player.animator.animSprite.getGlobalBounds())) {
+        if (isCollidingWithPlayer(player)) {
             markforDelete = true;
             player.playerInv.addItem(type, 1);
+            pickup.play();
         }
     }
 };
-dynArray<Pickup> pickUps;
+Pickup pickUps[pickUpCount];
 
 double rad(double self) {
     return self * (pi / 180);
@@ -684,6 +1281,52 @@ double rad(double self) {
 int rad(int self) {
     return self * (pi / 180);
 }
+
+void destroyPickups() {
+    for (int i = pickUpCount - 1; i >= 0; i -= 1) {
+        pickUps[i].markforDelete = true;
+    }
+}
+
+void killUnhiredMercenaries() {
+    for (int i = mercenaries.size() - 1; i >= 0; i -= 1) {
+        if (!mercenaries[i].hired) {
+            mercenaries[i].Health = 0.0;
+        }
+    }
+}
+
+void spawnMercenaries() {
+    killUnhiredMercenaries();
+    const int currSize = mercenaries.size();
+    for (int i = 0; i < 3 - currSize;) {
+        int ranX = random(0, 100);
+        int ranY = random(0, 100);
+        grassTile& tile = tileMap[ranY][ranX];
+        if (tile.isEmpty) {
+            mercenaries.insert({ (tile.position) , true, i});
+            i += 1;
+        }
+    }
+}
+
+void makePickups() {
+    destroyPickups();
+    int i = 0;
+    while (i < pickUpCount) {
+        int ranX = random(0, 100);
+        int ranY = random(0, 100);
+        int ranType = random(0, pickups - 1);
+        grassTile& tile = tileMap[ranY][ranX];
+        if (tile.isEmpty) {
+            pickUps[i].assign(sf::Vector2<double>((double)ranX * (double)tileSize, (double)ranY * (double)tileSize), pickupNames[ranType], &tile);
+            pickUps[i].markforDelete = false;
+            tile.isEmpty = false;
+            i += 1;
+        }
+    }
+}
+
 double nightTimePitches[6] = { 0.3, 0.2, 0.1, 0.1, 0.1, 0.1 };
 sf::Music* nightTimeAudios[6] = { &Halloween3, &Halloween2, &Halloween3, &Halloween1, &Halloween2, &HalloweenGhost };
 bool nightAudioCool = true;
@@ -692,6 +1335,8 @@ double colorAlpha = 0.0f;
 bool cycleTransitionRunning = false;
 void setNight() {
     if (cycleTransitionRunning == false) {
+        destroyPickups();
+        killUnhiredMercenaries();
         gameTimer = 0.0;
         colorAlpha = 0.0;
         cycleTransitionRunning = true;
@@ -719,6 +1364,8 @@ void setNight() {
 
 void setDay() {
     if (cycleTransitionRunning == false) {
+        makePickups();
+        spawnMercenaries();
         gameTimer = 0.0;
         colorAlpha = 1.0;
         cycleTransitionRunning = true;
@@ -738,6 +1385,7 @@ void setDay() {
         dayTheme.setVolume(100.0f);
         cycleTransitionRunning = false;
         Mode = "Day";
+        chase.setVolume(0.0f);
     }
 }
 
@@ -759,14 +1407,46 @@ void nightTimeAudioPlayLogic() { // Runs every frame
     }
 }
 
-void drawMap(sf::RenderWindow& window, Player& player) {
+void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& merchant) {
     int minX = std::clamp<int>(floor(-cameraPos.x / tileSize) - 2, 0, worldSize - 1);
     int minY = std::clamp<int>(floor(-cameraPos.y / tileSize) - 2, 0, worldSize - 1);
     int maxX = std::clamp<int>(ceil((-cameraPos.x + windowSize.x) / tileSize), 0, worldSize - 1);
     int maxY = std::clamp<int>(ceil((-cameraPos.y + windowSize.y) / tileSize), 0, worldSize - 1);
     for (int y = minY; y < maxY; y++) {
         for (int x = minX; x < maxX; x++) {
-            tileMap[y][x].draw(window, cameraPos);
+            tileMap[y][x].draw(window);
+        }
+    }
+    for (int i = pickUpCount - 1; i >= 0; i -= 1) {
+        Pickup& pickup = pickUps[i];
+        if (pickup.markforDelete) {
+            grassTile* associatedTile = pickup.associatedTile;
+            if (associatedTile != nullptr) {
+                (*associatedTile).isEmpty = true;
+                associatedTile = nullptr;
+            }
+        }
+        else {
+            bool visX = (pickup.position.x + cameraPos.x + tileSize) >= 0 && (pickup.position.x + cameraPos.x) <= windowSize.x;
+            bool visY = (pickup.position.y + cameraPos.y + tileSize) >= 0 && (pickup.position.y + cameraPos.y) <= windowSize.y;
+            if (visX && visY) {
+                pickup.Logic(player);
+                pickUps[i].draw(window);
+            }
+        }
+    }
+    for (int i = Bullets.size() - 1; i >= 0; i -= 1) {
+        Bullet& bullet = Bullets[i];
+        if (!bullet.active) {
+            Bullets.remove(i);
+        }
+        else {
+            bool visX = (bullet.getWorldPosition().x + tileSize) >= 0 && (bullet.getWorldPosition().x + cameraPos.x) <= windowSize.x;
+            bool visY = (bullet.getWorldPosition().y + tileSize) >= 0 && (bullet.getWorldPosition().y + cameraPos.y) <= windowSize.y;
+            if (visX && visY) {
+                bullet.update(ghost);
+                bullet.draw(window);
+            }
         }
     }
     for (int i = 0; i < decorMap.size(); i += 1) {
@@ -774,58 +1454,74 @@ void drawMap(sf::RenderWindow& window, Player& player) {
         bool visX = (decor.position.x + cameraPos.x + tileSize) >= 0 && (decor.position.x + cameraPos.x) <= windowSize.x;
         bool visY = (decor.position.y + cameraPos.y + tileSize) >= 0 && (decor.position.y + cameraPos.y) <= windowSize.y;
         if (visX && visY) {
-            double playerDepth = player.position.y + ((double)player.trueSize.y * player.scale.y * 1.275);
+            double playerDepth = player.getPosition().y + player.getSize().y;
             double selfDepth = decor.position.y + cameraPos.y + (decor.size.y * decor.scale.y);
             if (decor.alwaysDrawUnderPlayer == true || playerDepth > selfDepth)
-                decor.draw(window, cameraPos);
+                decor.draw(window);
         }
     }
+    for (int i = mercenaries.size() - 1; i >= 0; i -= 1) {
+        Mercenary& mercenary = mercenaries[i];
+        if (mercenary.markforDelete) {
+            mercenaries.remove(i);
+        }
+        else {
+            bool visX = (mercenary.getWorldPosition().x + tileSize) >= 0 && (mercenary.getWorldPosition().x + cameraPos.x) <= windowSize.x;
+            bool visY = (mercenary.getWorldPosition().y + tileSize) >= 0 && (mercenary.getWorldPosition().y + cameraPos.y) <= windowSize.y;
+            if (visX && visY) {
+                mercenary.Logic(player, ghost);
+                mercenary.draw(window);
+            }
+        }
+    }
+    merchant.draw(window);
     player.draw(window);
+    ghost.Logic(getClosestTarget(ghost, player));
+    if (playerCollidingWithGhost(player, ghost)) {
+        takeDamage(player, ghost);
+    }
+    ghost.draw(window, player);
     for (int i = 0; i < decorMap.size(); i += 1) {
         mapDecor& decor = decorMap[i];
         bool visX = (decor.position.x + cameraPos.x + tileSize) >= 0 && (decor.position.x + cameraPos.x) <= windowSize.x;
         bool visY = (decor.position.y + cameraPos.y + tileSize) >= 0 && (decor.position.y + cameraPos.y) <= windowSize.y;
         if (visX && visY) {
-            double playerDepth = player.position.y + ((double)player.trueSize.y * player.scale.y * 1.275);
+            double playerDepth = player.getPosition().y + player.getSize().y;
             double selfDepth = decor.position.y + cameraPos.y + (decor.size.y * decor.scale.y);
             if (decor.alwaysDrawUnderPlayer == false && playerDepth < selfDepth)
-                decor.draw(window, cameraPos);
+                decor.draw(window);
         }
     }
-}
-
-void destroyPickups() {
-    for (int i = pickUps.size() - 1; i >= 0; i -= 1) {
-        pickUps[i].markforDelete = true;
-        pickUps.remove(i);
-    }
-}
-
-void makePickups() {
-    destroyPickups();
-    for (int i = 0; i < 200; i += 1) {
-        int ranX = random(0, 100);
-        int ranY = random(0, 100);
-        int ranType = random(0, pickups - 1);
-        pickUps.insert(Pickup{ {(double)ranX * (double)tileSize, (double)ranY * (double)tileSize}, pickupNames[ranType] });
+    for (int y = minY; y < maxY; y++) {
+        for (int x = minX; x < maxX; x++) {
+            tileMap[y][x].drawFog(window);
+        }
     }
 }
 
 int main()
 {
     srand(time(0));
-    sf::VideoMode screenMode = sf::VideoMode::getFullscreenModes()[0];
+    sf::VideoMode screenMode = sf::VideoMode::getDesktopMode();
     sf::RenderWindow window(sf::VideoMode(screenMode), "Withered Roots", sf::Style::Titlebar | sf::Style::Close);
     windowSize = sf::Vector2<int>(screenMode.size.x, screenMode.size.y);
     initAnims();
     initTileMap();
     Player player{};
+    Ghost ghost{};
+    Merchant merchant{};
     player.bareMove((sf::Vector2<double>(screenMode.size.x / 2.0f - 25.0f, screenMode.size.y / 2.0f - 25.0f)));
+    merchant.move((sf::Vector2<double>(screenMode.size.x / 2.0f - 50.0f, screenMode.size.y / 2.0f - 50.0f)));
+    ghost.move((sf::Vector2<double>(screenMode.size.x / 2.0f - 25.0f, screenMode.size.y / 2.0f - 25.0f)));
     sf::Clock deltaTimer;
     deltaTimer.start();
     dayTheme.setLooping(true);
     dayTheme.play();
+    chase.setLooping(true);
+    chase.play();
+    chase.setVolume(0.0f);
     makePickups();
+    spawnMercenaries();
     while (window.isOpen())
     {
         colorTint = dayTint;
@@ -836,7 +1532,7 @@ int main()
         combinedDeltaTime += deltaTime;
         while (const std::optional event = window.pollEvent())
         {
-            if (event->is<sf::Event::Closed>())
+            if ((*event).is<sf::Event::Closed>())
                 window.close();
         }
         sf::Vector2<double> movementOffset = sf::Vector2<double>(0, 0);
@@ -872,17 +1568,8 @@ int main()
         }
         player.move(movementOffset, deltaTime);
         window.clear();
-        drawMap(window, player);
-        for (int i = pickUps.size() - 1; i >= 0; i -= 1) {
-            //std::cout << pickUps[i].type << "\n";
-            pickUps[i].Logic(player);
-            if (pickUps[i].markforDelete) {
-                pickUps.remove(i);
-            }
-            else {
-                pickUps[i].draw(window);
-            }
-        }
+        drawMap(window, player, ghost, merchant);
         window.display();
     }
+    return 0;
 }
