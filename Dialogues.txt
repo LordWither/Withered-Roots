@@ -1,0 +1,9 @@
+SHOP
+Prompt:Press SPACEBAR to browse the shop.
+Greet:Welcome to the shop, you can buy and sell your stuff here.
+CampfireMaterials:Campfire Materials, can be used to create a campfire, lasts for 2 minutes, you regenerate health and stamina faster near it.
+Bandages:One-time use, heals you by 40 hp.
+Beans:One-time use, heals you by 10 hp.
+Chocolate:One-time use, you regain 40 stamina and are healed by 5 hp.
+MERC
+Prompt:Press SPACEBAR to hire this npc for $200.

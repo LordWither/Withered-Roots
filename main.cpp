@@ -12,10 +12,12 @@ sf::Vector2<double> cameraPos = sf::Vector2<double>(0.0, 0.0);
 sf::Vector2<int> windowSize;
 sf::Vector2<double> playerPos{ 0.0, 0.0 };
 const int textureCount = 4;
-const int pickups = 4;
+const int pickups = 5;
 sf::Texture textureData[textureCount] = {sf::Texture("Assets\\Grass.png"),sf::Texture("Assets\\Tree.png") ,sf::Texture("Assets\\Rocks.png") ,sf::Texture("Assets\\Bush.png") };
-sf::Texture pickUpTextures[pickups] = {sf::Texture("Assets\\Bandages.png"), sf::Texture("Assets\\Beans.png"), sf::Texture("Assets\\Cash.png"), sf::Texture("Assets\\Chocolate.png")};
-std::string pickupNames[pickups] = {"bandages", "beans", "cash", "chocolate"};
+sf::Texture pickUpTextures[pickups] = {sf::Texture("Assets\\Bandages.png"), sf::Texture("Assets\\Beans.png"), sf::Texture("Assets\\Chocolate.png"), sf::Texture("Assets\\CampfireMaterials.png"), sf::Texture("Assets\\Cash.png")};
+std::string pickupNames[pickups] = {"Bandages", "Beans", "Chocolate", "CampfireMaterials", "Cash"};
+int pickupPrice[pickups - 1] = { 200, 50, 150, 150};
+int pickUpAmounts[pickups] = {1, 1, 1, 1, 20};
 char textureKeys[textureCount] = { 'G', 'T', 'R', 'B'};
 sf::Vector2<double> textureScales[textureCount] = { {1.0, 1.0},{1.0, 1.0},{0.6, 0.6},{0.7, 0.7} };
 bool textureAlwaysDrawsUnderPlayer[textureCount] = { false, false, true, false };
@@ -23,6 +25,7 @@ bool textureAlwaysDrawsUnderPlayer[textureCount] = { false, false, true, false }
 sf::Texture ghostEyesTex{"Assets\\GhostEyes.png"};
 sf::Texture ghostSmokeTex{ "Assets\\GhostSmoke.png" };
 sf::Texture merchantShopTex("Assets\\Shop.png");
+sf::Texture campfire("Assets\\Campfire.png");
 
 const int worldSize = 100;
 const int tileSize = 100;
@@ -31,17 +34,17 @@ sf::Color nightTint = sf::Color::Color(29, 89, 255, 255U);
 sf::Color colorTint = sf::Color::Color(255, 255, 255, 255U);
 sf::Color fogColor = sf::Color::Color(128, 128, 128, 255U);
 std::string Mode = "Day";
-const int pickUpCount = 200;
-double currentTime = 0.0f;
-double deltaTime = 0.0f;
-double combinedDeltaTime = 0.0f;
+const int pickUpCount = 10;
+double currentTime = 0.0;
+double deltaTime = 0.0;
+double combinedDeltaTime = 0.0;
 const double pi = 3.14159265358979323846;
 double fogStartDay = 450.0;
 double fogEndDay = 1300.0;
 double fogStartNight = fogStartDay * 0.9;
 double fogEndNight = fogEndDay * 0.9;
-double dayTime = 15.0;
-double nightTime = 100.0;
+double dayTime = 150.0;
+double nightTime = 300.0;
 double fogStart = 0.0;
 double fogEnd = 0.0;
 double gameTimer = 0.0;
@@ -61,8 +64,10 @@ sf::Music error("Assets\\error.ogg");
 sf::Music death("Assets\\death.ogg");
 sf::Music hit("Assets\\hit.ogg");
 sf::Music fire("Assets\\fire.ogg");
+sf::Music itemUse("Assets\\itemUse.ogg");
+sf::Font defFont("Assets\\Font.ttf");
 
-template<typename arrType>
+template <typename arrType>
 struct dynArray {
     arrType* Core = nullptr;
     int length = 1;
@@ -186,9 +191,10 @@ struct dynArray {
     }
 };
 
+
 dynArray<std::string> animNames;
 dynArray<dynArray<sf::Texture>> animData;
-
+void initMercenaryTextures();
 void initAnims() {
     dynArray<sf::Texture> charMIdleUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle8.png")}, 8 };
     dynArray<sf::Texture> charMIdleDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle8.png")}, 8 };
@@ -214,6 +220,30 @@ void initAnims() {
     dynArray<sf::Texture> charFDeathDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death8.png")}, 8 };
     dynArray<sf::Texture> charFDeathLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death8.png")}, 8 };
     dynArray<sf::Texture> charFDeathRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMIdleUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Up\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMIdleDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Down\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMIdleLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Left\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMIdleRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Idle\\Right\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMWalkUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Up\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMWalkDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Down\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMWalkLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Left\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMWalkRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Walk\\Right\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMDeathUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Up\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMDeathDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Down\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMDeathLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Left\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharMDeathRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\M\\Death\\Right\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFIdleUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Up\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFIdleDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Down\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFIdleLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Left\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFIdleRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Idle\\Right\\Idle8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFWalkUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Up\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFWalkDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Down\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFWalkLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Left\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFWalkRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Walk\\Right\\Walk8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFDeathUp = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Up\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFDeathDown = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Down\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFDeathLeft = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Left\\Death8.png")}, 8 };
+    dynArray<sf::Texture> mercenaryCharFDeathRight = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death1.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death2.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death3.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death4.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death5.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death6.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death7.png"), sf::Texture("Assets\\Animations\\Character\\F\\Death\\Right\\Death8.png")}, 8 };
     dynArray<sf::Texture> merchant = { new sf::Texture[8] {sf::Texture("Assets\\Animations\\Merchant\\Merchant1.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant2.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant3.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant4.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant5.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant6.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant7.png"), sf::Texture("Assets\\Animations\\Merchant\\Merchant8.png")}, 8};
     animData.insert(charMIdleUp);
     animData.insert(charMIdleDown);
@@ -239,6 +269,30 @@ void initAnims() {
     animData.insert(charFDeathDown);
     animData.insert(charFDeathLeft);
     animData.insert(charFDeathRight);
+    animData.insert(mercenaryCharMIdleUp);
+    animData.insert(mercenaryCharMIdleDown);
+    animData.insert(mercenaryCharMIdleLeft);
+    animData.insert(mercenaryCharMIdleRight);
+    animData.insert(mercenaryCharMWalkUp);
+    animData.insert(mercenaryCharMWalkDown);
+    animData.insert(mercenaryCharMWalkLeft);
+    animData.insert(mercenaryCharMWalkRight);
+    animData.insert(mercenaryCharMDeathUp);
+    animData.insert(mercenaryCharMDeathDown);
+    animData.insert(mercenaryCharMDeathLeft);
+    animData.insert(mercenaryCharMDeathRight);
+    animData.insert(mercenaryCharFIdleUp);
+    animData.insert(mercenaryCharFIdleDown);
+    animData.insert(mercenaryCharFIdleLeft);
+    animData.insert(mercenaryCharFIdleRight);
+    animData.insert(mercenaryCharFWalkUp);
+    animData.insert(mercenaryCharFWalkDown);
+    animData.insert(mercenaryCharFWalkLeft);
+    animData.insert(mercenaryCharFWalkRight);
+    animData.insert(mercenaryCharFDeathUp);
+    animData.insert(mercenaryCharFDeathDown);
+    animData.insert(mercenaryCharFDeathLeft);
+    animData.insert(mercenaryCharFDeathRight);
     animData.insert(merchant);
     animNames.insert("CharMIdleUp");
     animNames.insert("CharMIdleDown");
@@ -264,12 +318,158 @@ void initAnims() {
     animNames.insert("CharFDeathDown");
     animNames.insert("CharFDeathLeft");
     animNames.insert("CharFDeathRight");
+    animNames.insert("MercenaryCharMIdleUp");
+    animNames.insert("MercenaryCharMIdleDown");
+    animNames.insert("MercenaryCharMIdleLeft");
+    animNames.insert("MercenaryCharMIdleRight");
+    animNames.insert("MercenaryCharMWalkUp");
+    animNames.insert("MercenaryCharMWalkDown");
+    animNames.insert("MercenaryCharMWalkLeft");
+    animNames.insert("MercenaryCharMWalkRight");
+    animNames.insert("MercenaryCharMDeathUp");
+    animNames.insert("MercenaryCharMDeathDown");
+    animNames.insert("MercenaryCharMDeathLeft");
+    animNames.insert("MercenaryCharMDeathRight");
+    animNames.insert("MercenaryCharFIdleUp");
+    animNames.insert("MercenaryCharFIdleDown");
+    animNames.insert("MercenaryCharFIdleLeft");
+    animNames.insert("MercenaryCharFIdleRight");
+    animNames.insert("MercenaryCharFWalkUp");
+    animNames.insert("MercenaryCharFWalkDown");
+    animNames.insert("MercenaryCharFWalkLeft");
+    animNames.insert("MercenaryCharFWalkRight");
+    animNames.insert("MercenaryCharFDeathUp");
+    animNames.insert("MercenaryCharFDeathDown");
+    animNames.insert("MercenaryCharFDeathLeft");
+    animNames.insert("MercenaryCharFDeathRight");
     animNames.insert("Merchant");
+    initMercenaryTextures();
 }
 
 template <typename T>
 T Lerp(T Start, T End, T alpha) {
     return Start + (End - Start) * alpha;
+}
+
+void initMercenaryTextures() {
+    uint8_t mFrom[11][4] = {
+        { 60, 84, 143, 255 },
+        { 50, 65, 127, 255 },
+        { 115, 115, 115, 255 },
+        { 172, 50, 50, 255 },
+        { 119, 19, 19, 255 },
+        { 62, 125, 141, 255 },
+        { 102, 51, 75, 255 },
+        { 44, 29, 72, 255 },
+        { 29, 17, 51, 255 },
+        { 60, 41, 94, 255 },
+        { 40, 48, 112, 255 }
+    };
+    uint8_t mTo[11][4] = {
+        { 143, 84, 80, 255 },
+        { 127, 65, 50, 255 },
+        { 115, 115, 115, 255 },
+        { 50, 50, 172, 255 },
+        { 19, 19, 119, 255 },
+        { 191, 40, 40, 255 },
+        { 102, 51, 51, 255 },
+        { 72, 29, 44, 255 },
+        { 51, 17, 29, 255 },
+        { 94, 41, 60, 255 },
+        { 112, 48, 40, 255 }
+    };
+    uint8_t fFrom[11][4] = {
+        { 42, 105, 87, 255 },
+        {59, 128, 77, 255},
+        {143, 143, 143, 255},
+        {103, 103, 103, 255},
+        {115, 115, 115, 255},
+        {174, 174, 174, 255},
+        {110, 39, 73, 255},
+        {87, 23, 72, 255},
+        {49, 13, 53, 255},
+        {145, 60, 81, 255},
+        {103, 103, 103, 255}
+    };
+    uint8_t fTo[11][4] = {
+        { 104, 41, 98, 255 },
+        {103, 59, 127, 255},
+        {70, 116, 140, 255},
+        {51, 85, 102, 255},
+        {65, 56, 112, 255},
+        {101, 86, 173, 255},
+        {25, 9, 17, 255},
+        {25, 6, 21, 255},
+        {11, 3, 12, 255},
+        {25, 10, 14, 255},
+        {70, 116, 140, 255}
+    };
+    for (int i = 0; i < animNames.size(); i += 1) {
+        if (animNames[i].starts_with("MercenaryChar")) {
+            uint8_t (*fromArr)[4] = animNames[i].starts_with("MercenaryCharM") ? mFrom : fFrom;
+            uint8_t(*toArr)[4] = animNames[i].starts_with("MercenaryCharM") ? mTo : fTo;
+            dynArray<sf::Texture>& texData = animData[i];
+            for (int ii = 0; ii < texData.size(); ii += 1) {
+                sf::Texture& original = texData[ii];
+                sf::Image workImg = original.copyToImage();
+                sf::Vector2u size = workImg.getSize();
+                for (unsigned int y = 0; y < size.y; y += 1) {
+                    for (unsigned int x = 0; x < size.x; x += 1) {
+                        sf::Color pixel = workImg.getPixel({ x, y });
+                        for (int iii = 0; iii < 11; iii += 1) {
+                            uint8_t *fromColors = fromArr[iii];
+                            uint8_t *toColors = toArr[iii];
+                            if (pixel.r == fromColors[0] && pixel.g == fromColors[1] && pixel.b == fromColors[2] && pixel.a == fromColors[3]) {
+                                workImg.setPixel({ x, y }, sf::Color::Color(toColors[0], toColors[1], toColors[2], toColors[3]));
+                            }
+                        }
+                    }
+                }
+                original.loadFromImage(workImg);
+            }
+        }
+    }
+}
+dynArray<std::string> mercenaryDialogueKey;
+dynArray<std::string> mercenaryDialogueValue;
+dynArray<std::string> shopDialogueKey;
+dynArray<std::string> shopDialogueValue;
+void initDialogues() {
+    std::ifstream dialogueCont("Dialogues.txt");
+    std::string line;
+    std::string mode;
+    while (std::getline(dialogueCont, line)) {
+        if (line.starts_with("SHOP")) {
+            mode = "shop";
+            continue;
+        }
+        else if (line.starts_with("MERC")) {
+            mode = "mercenary";
+            continue;
+        }
+        std::string key, value;
+        bool foundSemicolon = false;
+        for (int i = 0; i < line.size(); i += 1) {
+            if (foundSemicolon == true) {
+                value += line[i];
+            }
+            else {
+                if (line[i] == ':') {
+                    foundSemicolon = true;
+                }
+                else {
+                    key += line[i];
+                }
+            }
+        }
+        if (mode == "shop") {
+            shopDialogueKey.insert(key);
+            shopDialogueValue.insert(value);
+        }else if (mode == "mercenary") {
+            mercenaryDialogueKey.insert(key);
+            mercenaryDialogueValue.insert(value);
+        }
+    }
 }
 
 sf::Color Lerp(sf::Color Start, sf::Color End, double alpha) {
@@ -296,6 +496,83 @@ sf::Color setTransparency(sf::Color self, double transparency) {
 
 bool FuzzyEq(sf::Vector2<double> self, sf::Vector2<double> other, double epsilon = 1e-5) {
     return (std::abs(self.x - other.x) <= epsilon && std::abs(self.y - other.y) <= epsilon);
+}
+
+struct UI {
+    std::string text = "";
+    unsigned int fontSize = 24;
+    sf::Vector2<double> size = { 50, 100 };
+    sf::Vector2<double> position = { 0, 0 };
+    sf::Text Text{ defFont, text, fontSize };
+    sf::Vector2<double> textOffset = { 0, 0 };
+    sf::Color backgroundColor{ 255, 255, 255, 255 };
+    sf::Color textColor{ 255, 255, 255, 255 };
+    sf::Color borderColor{ 255, 255, 255, 255 };
+    sf::RectangleShape background{doubleToFloat(size)};
+    int borderPixel = 5;
+    sf::RectangleShape border{ sf::Vector2f(borderPixel + 1, borderPixel + 1) };
+    UI() {};
+    void setText(std::string Data) {
+        text = Data;
+        Text.setString(text);
+        sf::FloatRect textRect = Text.getLocalBounds();
+        Text.setOrigin(doubleToFloat(sf::Vector2<double>(textRect.position.x + textRect.size.x / 2, textRect.position.y + textRect.size.y / 2)));
+    }
+    UI(sf::Vector2<double> size, sf::Vector2<double> position, std::string Data = "") : size(size), position(position) {
+        if (Data.size() > 0) {
+            setText(Data);
+        }
+    }
+    bool mouseOver() {
+        sf::Vector2i mouse = sf::Mouse::getPosition();
+        return (
+            mouse.x - size.x >= position.x &&
+            mouse.x <= position.x + size.x &&
+            mouse.y - size.y >= position.y &&
+            mouse.y <= position.y + size.y
+            );
+    }
+    void draw(sf::RenderWindow& window) {
+        background.setFillColor(backgroundColor);
+        border.setFillColor(borderColor);
+        background.setSize(doubleToFloat(size));
+        border.setSize(doubleToFloat(size + sf::Vector2<double>(borderPixel + 1, borderPixel + 1)));
+        background.setPosition(doubleToFloat(position));
+        border.setPosition(doubleToFloat(position - sf::Vector2<double>(borderPixel / 2, borderPixel / 2)));
+        sf::Vector2<double> centrePos = { position.x + size.x / 2.0, position.y + size.y / 2.0 };
+        window.draw(border);
+        window.draw(background);
+        if (text.size() > 0) {
+            Text.setCharacterSize(fontSize);
+            Text.setFillColor(textColor);
+            Text.setPosition(doubleToFloat(centrePos + textOffset));
+            window.draw(Text);
+        }
+    }
+};
+
+UI healthBar;
+UI staminaBar;
+UI timeText;
+UI moneyText;
+UI shopDialog;
+UI shopTitle;
+UI buyButtons[pickups - 1];
+UI sellButtons[pickups - 1];
+UI inventorySlots[pickups - 1];
+UI shopInventory[pickups - 1];
+
+bool shopOpen = false;
+
+bool mouseOver(UI& ui) {
+    sf::Vector2i mouse = sf::Mouse::getPosition();
+    sf::Vector2i mouseFixOffset = {-2, -15};
+    return (
+        mouse.x + mouseFixOffset.x >= ui.position.x &&
+        mouse.x + mouseFixOffset.x <= ui.position.x + ui.size.x &&
+        mouse.y + mouseFixOffset.y >= ui.position.y &&
+        mouse.y + mouseFixOffset.y <= ui.position.y + ui.size.y
+        );
 }
 
 struct Animation {
@@ -446,14 +723,13 @@ struct grassTile {
 struct mapDecor {
     sf::Vector2<int> originalPosition = { 0, 0 };
     sf::Vector2<double> position = { 0.0, 0.0 };
-    sf::Color color = sf::Color::Color(78, 180, 78, 100U);
     sf::Vector2<double> size = { tileSize, tileSize };
     sf::Vector2<double> scale = *textureScales;
     bool alwaysDrawUnderPlayer = *textureAlwaysDrawsUnderPlayer;
     char type = *textureKeys;
     sf::Sprite Sprite = sf::Sprite(*textureData, sf::IntRect({ 0, 0 }, { tileSize, tileSize}));
     mapDecor() {}
-    mapDecor(sf::Vector2<int> originalPosition, sf::Vector2<double> position, sf::RectangleShape* fog, char type) : originalPosition(originalPosition), position(position), type(type) {
+    mapDecor(sf::Vector2<int> originalPosition, sf::Vector2<double> position, char type) : originalPosition(originalPosition), position(position), type(type) {
         int foundIdx = -1;
         for (int i = 0; i < textureCount; i += 1) {
             if (textureKeys[i] == type) {
@@ -476,7 +752,7 @@ struct mapDecor {
     }
 };
 
-sf::Color getRanColor(){
+sf::Color getRanColor() {
     return sf::Color::Color(rand() % 255, rand() % 255, rand() % 255, 100U);
 }
 
@@ -492,22 +768,17 @@ void initTileMap() {
                 tileMap[y][x] = { sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y) };
             }
             else {
-                tileMap[y][x] = { sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), true};
+                tileMap[y][x] = { sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), true };
                 grassTile& tile = tileMap[y][x];
                 tile.isEmpty = false;
                 if (currentLine[x] == 'S' || currentLine[x] == 'T') {
                     tile.isBlocked = true;
                 }
-                decorMap.insert({sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), &tileMap[y][x].fog, currentLine[x]});
+                decorMap.insert({ sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), currentLine[x] });
             }
         }
         y += 1;
     };
-    //for (int y = 0; y < worldSize; y += 1) {
-    //    for (int x = 0; x < worldSize; x += 1) {
-    //        tileMap[y][x] = { sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>((double)tileSize * x, (double)tileSize * y)};
-    //    }
-    //}
 }
 
 int random(int min, int max) {
@@ -528,15 +799,22 @@ bool FuzzyEq(double self, double other, double epsilon = 1e-5) {
 }
 
 struct Inventory {
-    static const int gameItems = 4;
-    int itemVals[gameItems] = { 100, 1, 2, 1 };
-    std::string itemNames[gameItems] = {"Cash", "Beans", "Bandages", "Chocolate"};
-    int itemRandLimits[gameItems][2] = { {50,200},{0,1},{0,2},{0,1} };
-    bool holdingGun = false;
+    static const int gameItems = 5;
+    int itemVals[gameItems] = { 100, 1, 2, 1, 0 };
+    std::string itemNames[gameItems] = {"Cash", "Beans", "Bandages", "Chocolate", "CampfireMaterials"};
+    int itemRandLimits[gameItems][2] = { {50,200},{0,1},{0,2},{0,1}, {0, 0} };
     void randomize() {
         for (int i = 0; i < gameItems; i += 1) {
             itemVals[i] = random(itemRandLimits[i][0], itemRandLimits[i][1]);
         }
+    }
+    int getItemCount(std::string item) {
+        for (int i = 0; i < gameItems; i += 1) {
+            if (itemNames[i] == item) {
+                return itemVals[i];
+            }
+        }
+        return 0;
     }
     void addItem(std::string item, int count) {
         for (int i = 0; i < gameItems; i += 1) {
@@ -550,12 +828,6 @@ struct Inventory {
                 itemVals[i] = std::max(itemVals[i] - count, 0);
         }
     }
-    void equipGun() {
-        holdingGun = true;
-    }
-    void unEquipGun() {
-        holdingGun = false;
-    }
 };
 
 struct Player {
@@ -564,7 +836,7 @@ struct Player {
     sf::Vector2<int> offsetBias = {-3, -10};
     sf::Vector2<int> offset = { (48 - size.x) / 2 + 2, (64 - size.y) / 2 + 1 };
     sf::Vector2<double> scale = {2.5, 2.5};
-    sf::Vector2<double> position = { 0.0f, 0.0f };
+    sf::Vector2<double> position = { 0.0, 0.0 };
     sf::Vector2<int> offsetPos = { 48 - 16 / 2, 64 - 32 / 2 };
     double Health = 100.0;
     std::string Gender = random(1, 2) == 1 ? "CharM" : "CharF";
@@ -572,7 +844,9 @@ struct Player {
     std::string animVariant = "Down";
     double speed = 250.0;
     double stamina = 100.0;
+    double healRate = 1.0;
     double speedToAnimFPSRatio = 5.0 / 200.0;
+    double deathTimer = 0.0;
     Inventory playerInv;
     sf::Vector2<double> boundsMax = sf::Vector2<double>(windowSize.x * 0.7, windowSize.y * 0.7);
     sf::Vector2<double> boundsMin = sf::Vector2<double>(windowSize.x * 0.3, windowSize.y * 0.3);;
@@ -584,8 +858,8 @@ struct Player {
     Player() {
         playerInv.randomize();
         animator.Anim = Anim;
-        animator.Variant = animVariant + (playerInv.holdingGun ? "Gun" : "");
-    } //Keeping here in case I wanna init add code, causes no issues if I leave it here
+        animator.Variant = animVariant;
+    } //Keeping here in case I wanna init add code, causes no issues if I leave it here, 29th December 2025, 11:08PM, no time to remove this comment now
     sf::Vector2<double> getSize() {
         return sf::Vector2<double>((double)(size.x + sizeBias.x + offsetBias.x) * scale.x, (double)(size.y + sizeBias.y + offsetBias.y) * scale.y);
     }
@@ -613,15 +887,21 @@ struct Player {
     void changeAnim(std::string anim, std::string variant) {
         Anim = anim;
         animVariant = variant;
-        animator.changeAnim(anim, variant + ((playerInv.holdingGun && anim != "Death") ? "Gun" : ""));
+        animator.changeAnim(anim, variant);
     }
     void move(sf::Vector2<double> offset, double deltaTime) {
-        if (Health <= 0.0) {
+        if (FuzzyEq(Health, 0.0)) {
             if (Anim != "Death") {
                 dead = true;
                 changeAnim("Death", animVariant);
             }
             return;
+        }
+        if (!FuzzyEq(Health, 100.0)) {
+            Health = std::min(Health + deltaTime * healRate, 100.0);
+        }
+        else {
+            Health = 100.0;
         }
         if (FuzzyEq(offset.x, 0) && FuzzyEq(offset.y, 0)) {
             if (Anim != "Idle") {
@@ -675,10 +955,6 @@ struct Player {
     void draw(sf::RenderWindow &window) {
         animator.draw(window, position, scale);
     }
-    void equipGun(bool equip) {
-        equip ? playerInv.equipGun() : playerInv.unEquipGun();
-        changeAnim(Anim, animVariant);
-    }
 };
 
 struct Merchant {
@@ -692,10 +968,21 @@ struct Merchant {
     sf::Color color = sf::Color::Color(255, 255, 255, 255U);
     sf::Sprite shop{ merchantShopTex, sf::IntRect({0, 0}, size) };
     Animator animator = Animator("Merchant", { 48, 64 }, animFPS, {0, 0});
+    std::string fallBackText = "Fallback Text";
     grassTile* associatedTile = nullptr;
+    UI shopPrompt;
+    double pressTimer = 0.0;
     double hitTimer = 0.0;
     double hitCooldown = 0.5;
     Merchant() {
+        shopPrompt.backgroundColor = sf::Color::Color(0, 0, 0, 0);
+        shopPrompt.borderColor = sf::Color::Color(0, 0, 0, 0);
+        int key = shopDialogueKey.find("Prompt");
+        std::string data = fallBackText;
+        if (key != -1) {
+            data = shopDialogueValue[key];
+        }
+        shopPrompt.setText(data);
         animator.Anim = "";
         animator.Variant = "";
     } //Keeping here in case I wanna init add code, causes no issues if I leave it here
@@ -731,13 +1018,36 @@ struct Merchant {
             getWorldPosition().y + getSize().y > player.getPosition().y
             );
     }
+    void Logic(sf::RenderWindow& window, Player& player) {
+        pressTimer = std::max(pressTimer - deltaTime, 0.0);
+        if (collidingWithPlayer(player)) {
+            shopPrompt.position = getWorldPosition() + getSize() / 2.0 + sf::Vector2<double>(0.0, -getSize().y * 1.5);
+            shopPrompt.draw(window);
+            if (FuzzyEq(pressTimer, 0.0) && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
+                pressTimer = 0.2;
+                shopOpen = true;
+            }
+
+        }
+        else {
+            if (shopOpen) {
+                shopOpen = false;
+            }
+        }
+    }
     void move(sf::Vector2<double> newPos) {
         position = newPos;
         spritePosition = newPos + spriteOffset;
     }
-    void draw(sf::RenderWindow& window) {
+    void draw(sf::RenderWindow& window, Player& player) {
         if (Mode != "Night") {
             animator.draw(window, spritePosition + cameraPos, spriteScale);
+            Logic(window, player);
+        }
+        else {
+            if (shopOpen) {
+                shopOpen = false;
+            }
         }
         shop.setPosition(doubleToFloat(getWorldPosition()));
         shop.setScale(doubleToFloat(scale));
@@ -760,6 +1070,7 @@ struct Ghost {
     double orbitRadius = 12.0;
     double orbitSpeed = 5.0;
     double orbitAlpha = 0.0;
+    double sightBoost = 1.0;
     sf::Sprite smoke = sf::Sprite(ghostSmokeTex);
     sf::Vector2<double> wanderTarget = { 0.0, 0.0 };
     double wanderTimer = 0.0;
@@ -850,11 +1161,11 @@ struct Ghost {
         if (FuzzyEq(targetPos, { 0.0, 0.0 })) {
             state = "Wander";
             wander(targetPos);
-            chase.setVolume(0.0f);
+            chase.setVolume(0.0);
             orbitSpeed = 5.0;
             return;
         };
-        if ((targetPos - getWorldPosition()).length() <= sightRadius && state != "Recover") {
+        if ((targetPos - getWorldPosition()).length() <= sightRadius * sightBoost && state != "Recover") {
             if (state != "Chase") {
                 state = "Chase";
                 orbitSpeed = 25.0;
@@ -876,17 +1187,17 @@ struct Ghost {
             state = "Wander";
         }
         if (state == "Chase") {
-            chase.setVolume(100.0f);
+            chase.setVolume(100.0);
             moveTo(targetPos);
         }
         else if (state == "Wander") {
             //Randomly walk to a tile, random should be weighted towards the player position, intention is, that even if the ghost is placed on the furthest corner of the map, it can reach the player during the night
             wander(targetPos);
-            chase.setVolume(0.0f);
+            chase.setVolume(0.0);
             orbitSpeed = 5.0;
         }
         else {
-            chase.setVolume(0.0f);
+            chase.setVolume(0.0);
             orbitSpeed = 5.0;
             Health = std::min(Health + 10.0 * deltaTime, 100.0);
         }
@@ -954,16 +1265,11 @@ struct Bullet {
     }
 
     bool collidesWithGhost(Ghost& ghost) {
-        sf::Vector2<double> aPos = getWorldPosition();
-        sf::Vector2<double> aSize = getSize();
-        sf::Vector2<double> bPos = ghost.getWorldPosition();
-        sf::Vector2<double> bSize = ghost.getSize();
-
         return (
-            aPos.x < bPos.x + bSize.x &&
-            aPos.x + aSize.x > bPos.x &&
-            aPos.y < bPos.y + bSize.y &&
-            aPos.y + aSize.y > bPos.y
+            getWorldPosition().x < ghost.getWorldPosition().x + ghost.getSize().x &&
+            getWorldPosition().x + getSize().x > ghost.getWorldPosition().x &&
+            getWorldPosition().y < ghost.getWorldPosition().y + ghost.getSize().y &&
+            getWorldPosition().y + getSize().y > ghost.getWorldPosition().y
             );
     }
 
@@ -997,7 +1303,7 @@ void spawnBullet(sf::Vector2<double> startPos, sf::Vector2<double> dir) {
     fire.play();
     Bullets.insert({startPos, dir});
 }
-
+int getFollowIndex();
 struct Mercenary {
     sf::Vector2<int> size = { 48, 64 };
     sf::Vector2<int> sizeBias = { -48 + 16, -64 + 32 };
@@ -1009,8 +1315,9 @@ struct Mercenary {
 
     double Health = 100.0;
     bool hired = false;
-
-    std::string Gender = random(1, 2) == 1 ? "CharM" : "CharF";
+    UI hirePrompt;
+    double pressTimer = 0.0;
+    std::string Gender = random(1, 2) == 1 ? "MercenaryCharM" : "MercenaryCharF";
     std::string Anim = "Idle";
     std::string animVariant = "Down";
     std::string state = "Idle";
@@ -1018,7 +1325,6 @@ struct Mercenary {
     double speed = 250.0;
     double speedToAnimFPSRatio = 5.0 / 200.0;
 
-    Inventory mercInv;
     Animator animator = Animator(Gender, size, speedToAnimFPSRatio * speed, offset);
 
     int followIndex = 0;
@@ -1033,10 +1339,15 @@ struct Mercenary {
     bool markforDelete = false;
     double hitTimer = 0.0;
     double hitCooldown = 0.5;
+    double healRate = 1.0;
+    std::string fallback = "Press SPACEBAR to hire this npc for $200.";
     Mercenary() {
-        mercInv.randomize();
+        hirePrompt.backgroundColor = sf::Color::Color(0, 0, 0, 0);
+        hirePrompt.borderColor = sf::Color::Color(0, 0, 0, 0);
+        int key = mercenaryDialogueKey.find("Prompt");
+        hirePrompt.setText(key != -1 ? mercenaryDialogueValue[key] : fallback);
         animator.Anim = Anim;
-        animator.Variant = animVariant + (mercInv.holdingGun ? "Gun" : "");
+        animator.Variant = animVariant;
     }
     sf::Vector2<double> getSize() {
         return sf::Vector2<double>(
@@ -1054,7 +1365,7 @@ struct Mercenary {
     void changeAnim(std::string anim, std::string variant) {
         Anim = anim;
         animVariant = variant;
-        animator.changeAnim(anim, variant + ((mercInv.holdingGun && anim != "Death") ? "Gun" : ""));
+        animator.changeAnim(anim, variant);
     }
 
     void trueMove(sf::Vector2<double> offset) {
@@ -1064,6 +1375,10 @@ struct Mercenary {
         position = offset;
     }
     Mercenary(sf::Vector2<double> initialPos, bool hired = false, int followIndex = 0) : hired(hired), followIndex(followIndex) {
+        hirePrompt.backgroundColor = sf::Color::Color(0, 0, 0, 0);
+        hirePrompt.borderColor = sf::Color::Color(0, 0, 0, 0);
+        int key = mercenaryDialogueKey.find("Prompt");
+        hirePrompt.setText(key != -1 ? mercenaryDialogueValue[key] : fallback);
         bareMove(initialPos + cameraPos + getSize() / 2.0);
     }
     void move(sf::Vector2<double> dir, Player& player) {
@@ -1181,6 +1496,14 @@ struct Mercenary {
             ghost.getWorldPosition().y + ghost.getSize().y > getBiasedWorldPosition().y
             );
     }
+    bool collidingWithPlayer(Player& player) {
+        return (
+            player.getPosition().x < getBiasedWorldPosition().x + getSize().x &&
+            player.getPosition().x + player.getSize().x > getBiasedWorldPosition().x &&
+            player.getPosition().y < getBiasedWorldPosition().y + getSize().y &&
+            player.getPosition().y + player.getSize().y > getBiasedWorldPosition().y
+            );
+    }
     void takeDamage(Ghost& ghost) {
         if (Mode == "Day") return;
         if (collidingWithGhost(ghost) && dead != true) { // Always running even if idle
@@ -1196,7 +1519,7 @@ struct Mercenary {
         }
     }
 
-    void Logic(Player& player, Ghost& ghost) {
+    void Logic(Player& player, Ghost& ghost, sf::RenderWindow& window) {
         if (dead == true) {
             handleDeath();
             return;
@@ -1206,8 +1529,32 @@ struct Mercenary {
             handleDeath();
             return;
         }
-
-        if (!hired) return;
+        if (!FuzzyEq(Health, 100.0)) {
+            Health = std::min(Health + deltaTime * 2.0 * healRate, 100.0);
+        }
+        else {
+            Health = 100.0;
+        }
+        if (!hired) {
+            pressTimer = std::max(pressTimer - deltaTime, 0.0);
+            if (collidingWithPlayer(player)) {
+                hirePrompt.position = getWorldPosition() + getSize() / 2.0 + sf::Vector2<double>(0.0, -getSize().y * 1.5);
+                hirePrompt.draw(window);
+                if (FuzzyEq(pressTimer, 0.0) && sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Space)) {
+                    pressTimer = 0.2;
+                    if (player.playerInv.getItemCount("Cash") >= 200) {
+                        purchase.play();
+                        followIndex = getFollowIndex();
+                        hired = true;
+                        player.playerInv.removeItem("Cash", 200);
+                    }
+                    else {
+                        error.play();
+                    }
+                }
+            }
+            return;
+        };
         speed = player.speed;
         acquireTarget(ghost);
         if (state == "Combat")
@@ -1224,6 +1571,47 @@ struct Mercenary {
 };
 dynArray<Mercenary> mercenaries = {};
 
+int getFollowIndex() {
+    int count = 0;
+    for (int i = 0; i < mercenaries.size(); i += 1) {
+        Mercenary& mercenary = mercenaries[i];
+        if (mercenary.hired) {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+struct Campfire {
+    sf::Vector2<double> position = { 0.0, 0.0 };
+    sf::Vector2<double> size = { tileSize, tileSize };
+    sf::Vector2<double> scale = { 1.0, 1.0 };
+    double lifeTime = 120.0;
+    bool markForDelete = false;
+    sf::Sprite Sprite = sf::Sprite(campfire, sf::IntRect({ 0, 0 }, { tileSize, tileSize }));
+    Campfire() {}
+    Campfire(sf::Vector2<double> position) : position(position) {
+    }
+    sf::Vector2<double> getWorldPosition() {
+        return position + cameraPos;
+    }
+    void Logic() {
+        lifeTime = std::max(lifeTime - deltaTime, 0.0);
+        if (FuzzyEq(lifeTime, 0.0)) {
+            markForDelete = true;
+        }
+    }
+    void draw(sf::RenderWindow& window) {
+        Logic();
+        sf::Vector2<double> playerCentre = playerPos + sf::Vector2<double>(50.0, 50.0);
+        sf::Vector2<double> fogCentre = (position + cameraPos) + (sf::Vector2<double>((double)tileSize, (double)tileSize) / 2.0);
+        Sprite.setScale(sf::Vector2f(scale.x, scale.y));
+        Sprite.setColor(colorTint);
+        Sprite.setPosition(doubleToFloat(position + cameraPos));
+        window.draw(Sprite);
+    }
+};
+dynArray<Campfire> campfires;
 sf::Vector2<double> getClosestTarget(Ghost& ghost, Player& player) {
     int size = mercenaries.size();
     sf::Vector2<double>* positions = new sf::Vector2<double>[size + 1];
@@ -1350,7 +1738,15 @@ struct Pickup {
         }
         if (isCollidingWithPlayer(player)) {
             markforDelete = true;
-            player.playerInv.addItem(type, 1);
+            int j = -1;
+            for (int i = 0; i < pickups; i += 1) {
+                if (pickupNames[i] == type){
+                    j = i;
+                    break;
+                }
+            }
+            if (j == -1) return;
+            player.playerInv.addItem(type, pickUpAmounts[j]);
             pickup.play();
         }
     }
@@ -1387,7 +1783,7 @@ void spawnMercenaries() {
         int ranY = random(0, 100);
         grassTile& tile = tileMap[ranY][ranX];
         if (tile.isEmpty) {
-            mercenaries.insert({ (tile.position) , true, i});
+            mercenaries.insert({ (tile.position) , false});
             i += 1;
         }
     }
@@ -1414,7 +1810,7 @@ double nightTimePitches[6] = { 0.3, 0.2, 0.1, 0.1, 0.1, 0.1 };
 sf::Music* nightTimeAudios[6] = { &Halloween3, &Halloween2, &Halloween3, &Halloween1, &Halloween2, &HalloweenGhost };
 bool nightAudioCool = true;
 double lastNightAudioTime = 0.0;
-double colorAlpha = 0.0f;
+double colorAlpha = 0.0;
 bool cycleTransitionRunning = false;
 void setNight(Ghost& ghost) {
     if (cycleTransitionRunning == false) {
@@ -1431,11 +1827,11 @@ void setNight(Ghost& ghost) {
     }
     if (FuzzyEq(colorAlpha, 1.0)) {
         for (int i = 0; i < 6; i += 1) {
-            (*nightTimeAudios[i]).setVolume(100.0f);
+            (*nightTimeAudios[i]).setVolume(100.0);
         }
         gameTimer = 0.0;
         colorAlpha = 1.0;
-        dayTheme.setVolume(0.0f);
+        dayTheme.setVolume(0.0);
         cycleTransitionRunning = false;
         lastNightAudioTime = 15.0;
         nightAudioCool = false;
@@ -1446,7 +1842,7 @@ void setNight(Ghost& ghost) {
     }
 }
 
-void setDay(Merchant& merchant) {
+void setDay(Merchant& merchant, int& nightsSurvived) {
     if (cycleTransitionRunning == false) {
         makePickups();
         spawnMercenaries();
@@ -1464,16 +1860,14 @@ void setDay(Merchant& merchant) {
         gameTimer = 0.0;
         colorAlpha = 0.0;
         for (int i = 0; i < 6; i += 1) {
-            (*nightTimeAudios[i]).setVolume(0.0f);
+            (*nightTimeAudios[i]).setVolume(0.0);
         }
         merchant.teleportShop();
-        dayTheme.setVolume(100.0f);
+        dayTheme.setVolume(100.0);
         cycleTransitionRunning = false;
         Mode = "Day";
-        chase.setVolume(0.0f);
-        //for (int i = 0; i < mercenaries.size(); i += 1) {
-            //mercenaries[i].Health = 0.0;
-        //}
+        nightsSurvived += 1;
+        chase.setVolume(0.0);
     }
 }
 
@@ -1548,6 +1942,24 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
                 decor.draw(window);
         }
     }
+    double mult = 1.0;
+    for (int i = campfires.size() - 1; i >= 0; i -= 1) {
+        Campfire& campfire = campfires[i];
+        if (campfire.markForDelete) {
+            campfires.remove(i);
+        }
+        else {
+            mult = 2.0;
+            bool visX = (campfire.getWorldPosition().x + tileSize) >= 0 && (campfire.getWorldPosition().x) <= windowSize.x;
+            bool visY = (campfire.getWorldPosition().y + tileSize) >= 0 && (campfire.getWorldPosition().y) <= windowSize.y;
+            campfire.Logic();
+            if (visX && visY) {
+                campfire.draw(window);
+            }
+        }
+    }
+    player.healRate = mult;
+    ghost.sightBoost = mult * 0.5;
     for (int i = mercenaries.size() - 1; i >= 0; i -= 1) {
         Mercenary& mercenary = mercenaries[i];
         if (mercenary.markforDelete) {
@@ -1559,10 +1971,11 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
             if (visX && visY) {
                 mercenary.draw(window);
             }
-            mercenary.Logic(player, ghost);
+            mercenary.healRate = mult;
+            mercenary.Logic(player, ghost, window);
         }
     }
-    merchant.draw(window);
+    merchant.draw(window, player);
     player.draw(window);
     ghost.Logic(getClosestTarget(ghost, player));
     if (playerCollidingWithGhost(player, ghost)) {
@@ -1590,15 +2003,17 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
 int main()
 {
     srand(time(0));
+    int nightsSurvived = 0;
     sf::VideoMode screenMode = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(sf::VideoMode(screenMode), "Withered Roots", sf::Style::Titlebar | sf::Style::Close);
+    sf::RenderWindow window(sf::VideoMode(screenMode), "Withered Roots", sf::Style::None);
     windowSize = sf::Vector2<int>(screenMode.size.x, screenMode.size.y);
     initAnims();
     initTileMap();
+    initDialogues();
     Player player{};
     Ghost ghost{};
     Merchant merchant{};
-    player.bareMove((sf::Vector2<double>(screenMode.size.x / 2.0f - 25.0f, screenMode.size.y / 2.0f - 25.0f)));
+    player.bareMove((sf::Vector2<double>(screenMode.size.x / 2.0 - 25.0, screenMode.size.y / 2.0 - 25.0)));
     merchant.teleportShop();
     ghost.randomTeleport();
     sf::Clock deltaTimer;
@@ -1607,9 +2022,88 @@ int main()
     dayTheme.play();
     chase.setLooping(true);
     chase.play();
-    chase.setVolume(0.0f);
+    chase.setVolume(0.0);
     makePickups();
     spawnMercenaries();
+    // --- SHOP DIALOG ---
+    shopDialog.position = { 20.0, windowSize.y - 260.0 };
+    shopDialog.size = { windowSize.x - 40.0, 240.0 };
+    shopDialog.backgroundColor = sf::Color(20, 20, 20, 220);
+    shopDialog.borderColor = sf::Color::White;
+
+    // Title
+    shopTitle.position = { shopDialog.position.x + 20.0, shopDialog.position.y + 10.0 };
+    shopTitle.size = { 200.0, 30.0 };
+    shopTitle.setText("MERCHANT SHOP");
+    shopTitle.fontSize = 22;
+    shopTitle.backgroundColor = sf::Color(0, 0, 0, 0);
+    shopTitle.borderColor = sf::Color(0, 0, 0, 0);
+
+    // Item rows
+    for (int i = 0; i < pickups - 1; i++) {
+        double rowY = shopDialog.position.y + 50.0 + i * 40.0;
+
+        // Item label
+        shopInventory[i].position = { shopDialog.position.x + 20.0, rowY };
+        shopInventory[i].size = { 260.0, 30.0 };
+        shopInventory[i].fontSize = 18;
+        shopInventory[i].backgroundColor = sf::Color(0, 0, 0, 0);
+        shopInventory[i].borderColor = sf::Color(0, 0, 0, 0);
+        shopInventory[i].setText(
+            pickupNames[i] + " : $" + std::to_string(pickupPrice[i])
+        );
+
+        // BUY button
+        buyButtons[i].position = { shopDialog.position.x + 320.0, rowY };
+        buyButtons[i].size = { 80.0, 30.0 };
+        buyButtons[i].setText("BUY");
+        buyButtons[i].backgroundColor = sf::Color(30, 120, 30);
+        buyButtons[i].borderColor = sf::Color::Black;
+
+        // SELL button
+        sellButtons[i].position = { shopDialog.position.x + 420.0, rowY };
+        sellButtons[i].size = { 80.0, 30.0 };
+        sellButtons[i].setText("SELL");
+        sellButtons[i].backgroundColor = sf::Color(120, 30, 30);
+        sellButtons[i].borderColor = sf::Color::Black;
+    }
+
+
+    healthBar.position = sf::Vector2<double>( 30.0, windowSize.y - 90.0 );
+    healthBar.size = { 300, 20 };
+    healthBar.backgroundColor = sf::Color(120, 20, 20);
+    healthBar.borderColor = sf::Color::Black;
+
+    staminaBar.position = sf::Vector2<double>(30.0, windowSize.y - 60.0 );
+    staminaBar.size = { 300, 20 };
+    staminaBar.backgroundColor = sf::Color(20, 120, 20);
+    staminaBar.borderColor = sf::Color::Black;
+    timeText.position = sf::Vector2<double>(windowSize.x / 2.0 - 50.0, 20.0 );
+    timeText.size = { 100, 30 };
+    timeText.fontSize = 20;
+    timeText.backgroundColor = sf::Color(0, 0, 0, 0);
+    timeText.borderColor = sf::Color(0, 0, 0, 0);
+    moneyText.position = sf::Vector2<double>(30.0, 20.0 );
+    moneyText.size = { 160, 30 };
+    moneyText.fontSize = 20;
+    moneyText.backgroundColor = sf::Color(0, 0, 0, 0);
+    moneyText.borderColor = sf::Color(0, 0, 0, 0);
+    int slotCount = 4;
+    float slotSize = 48;
+    float startX = windowSize.x / 2.0 - (slotCount * slotSize) / 2.0;
+
+    for (int i = 0; i < slotCount; i += 1) {
+        UI& slot = inventorySlots[i];
+        slot.position = sf::Vector2<double>(startX + i * slotSize + (slot.borderPixel + 1) * i, windowSize.y - (slotSize*2.0));
+        slot.size = { slotSize, slotSize };
+        slot.backgroundColor = sf::Color(50, 50, 50);
+        slot.setText("");
+        slot.fontSize = 13;
+        slot.textOffset = slot.size / 2.0;
+        slot.borderColor = sf::Color::Black;
+    }
+    int selectedIndex = -1;
+    double selectSwitchTimer = 0.0;
     while (window.isOpen())
     {
         colorTint = dayTint;
@@ -1618,14 +2112,45 @@ int main()
         colorTint = Lerp(dayTint, nightTint, colorAlpha);
         deltaTime = (double)deltaTimer.restart().asSeconds();
         combinedDeltaTime += deltaTime;
+        selectSwitchTimer = std::max(selectSwitchTimer - deltaTime, 0.0);
+        if (player.dead) {
+            player.deathTimer = std::min(player.deathTimer + deltaTime, 10.0);
+        }
+        if (FuzzyEq(player.deathTimer, 10.0)) {
+            UI GameOver({ (double)windowSize.x, (double)windowSize.y }, { 0.0, 0.0 });
+            GameOver.backgroundColor = sf::Color::Color(0, 0, 0, 255);
+            GameOver.borderColor = sf::Color::Color(0, 0, 0, 0);
+            GameOver.textColor = sf::Color::Color(128, 0, 0, 255);
+            GameOver.setText("Game Over!\nYou survived " + std::to_string(nightsSurvived) + " nights!\nPress Escape to exit");
+            while (window.isOpen()) {
+                deltaTimer.restart();
+                window.clear();
+                GameOver.draw(window);
+                window.display();
+                while (const std::optional event = window.pollEvent())
+                {
+                    if ((*event).is<sf::Event::Closed>()) {
+                        window.close();
+                        return 0;
+                    }
+                }
+                if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
+                    window.close();
+                    return 0;
+                }
+            }
+        }
         while (const std::optional event = window.pollEvent())
         {
-            if ((*event).is<sf::Event::Closed>())
+            if ((*event).is<sf::Event::Closed>()) {
                 window.close();
+                return 0;
+            }
         }
         sf::Vector2<double> movementOffset = sf::Vector2<double>(0, 0);
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Escape)) {
             window.close();
+            return 0;
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
             movementOffset += { 1.0, 0.0 };
@@ -1638,6 +2163,44 @@ int main()
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Down)) {
             movementOffset += { 0.0, -1.0 };
+        }
+        if (FuzzyEq(selectSwitchTimer, 0.0) && (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num1) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad1))) {
+            selectedIndex = (selectedIndex != 0) ? 0 : -1;
+            selectSwitchTimer = 0.2;
+        }
+        if (FuzzyEq(selectSwitchTimer, 0.0) && (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num2) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad2))) {
+            selectedIndex = (selectedIndex != 1) ? 1 : -1;
+            selectSwitchTimer = 0.2;
+        }
+        if (FuzzyEq(selectSwitchTimer, 0.0) && (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num3) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad3))) {
+            selectedIndex = (selectedIndex != 2) ? 2 : -1;
+            selectSwitchTimer = 0.2;
+        }
+        if (FuzzyEq(selectSwitchTimer, 0.0) && (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num4) || sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Numpad4))) {
+            selectedIndex = (selectedIndex != 3) ? 3 : -1;
+            selectSwitchTimer = 0.2;
+        }
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+            if (selectedIndex >= 0 && selectedIndex <= pickups) {
+                std::string name = pickupNames[selectedIndex];
+                if (player.playerInv.getItemCount(name) > 0 && !player.dead) {
+                    if (name == "Beans") {
+                        player.Health = std::min(player.Health + 10.0, 100.0);
+                    }else if (name == "Chocolate") {
+                        player.Health = std::min(player.Health + 2.5, 100.0);
+                        player.stamina = std::min(player.stamina + 40.0, 100.0);
+                    }
+                    else if (name == "Bandages") {
+                        player.Health = std::min(player.Health + 40.0, 100.0);
+                    }
+                    else if (name == "CampfireMaterials") {
+                        campfires.insert({ player.getPosition() - cameraPos });
+                    }
+                    player.playerInv.removeItem(name, 1);
+                    itemUse.play();
+                }
+            }
+            selectedIndex = -1;
         }
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift)) {
             if (!FuzzyEq(player.stamina, 0)) {
@@ -1655,11 +2218,18 @@ int main()
         if (cycleTransitionRunning == false) {
             gameTimer += deltaTime;
         }
-        if (Mode == "Day" && (gameTimer > dayTime || cycleTransitionRunning)) {
-            setNight(ghost);
+        int secondsLeft = 0;
+        if (Mode == "Day"){
+            secondsLeft = std::max((int)(dayTime - gameTimer), 0);
+            if (gameTimer > dayTime || cycleTransitionRunning) {
+                setNight(ghost);
+            }
         }
-        else if (Mode == "Night" && (gameTimer > nightTime || cycleTransitionRunning)) {
-            setDay(merchant);
+        else if (Mode == "Night"){
+            secondsLeft = std::max((int)(nightTime - gameTimer), 0);
+            if (gameTimer > nightTime || cycleTransitionRunning) {
+                setDay(merchant, nightsSurvived);
+            }
         }
         if (Mode == "Night") {
             nightTimeAudioPlayLogic();
@@ -1667,6 +2237,85 @@ int main()
         player.move(movementOffset, deltaTime);
         window.clear();
         drawMap(window, player, ghost, merchant);
+        healthBar.size.x = (player.Health / 100.0) * 300.0;
+        staminaBar.size.x = (player.stamina / 100.0) * 300.0;
+        timeText.setText("Time Left: " + std::to_string(secondsLeft));
+        moneyText.setText("Money: $" + std::to_string(player.playerInv.itemVals[0]) + ".0");
+        for (int i = 0; i < pickups - 1; i += 1) {
+            int count = player.playerInv.getItemCount(pickupNames[i]);
+            if (count > 0) {
+                inventorySlots[i].background.setTexture(&pickUpTextures[i]);
+                inventorySlots[i].backgroundColor = sf::Color::White;
+                inventorySlots[i].borderColor = sf::Color::Black;
+                inventorySlots[i].setText(std::to_string(count));
+            }
+            else {
+                inventorySlots[i].setText("");
+                inventorySlots[i].background.setTexture(nullptr);
+                inventorySlots[i].backgroundColor = sf::Color::Color(50, 50, 50, 255);
+                inventorySlots[i].borderColor = sf::Color::Black;
+            }
+            inventorySlots[i].borderColor = (i == selectedIndex) ? sf::Color::Yellow : sf::Color::Black;
+            inventorySlots[i].draw(window);
+        }
+        healthBar.draw(window);
+        staminaBar.draw(window);
+        timeText.draw(window);
+        moneyText.draw(window);
+        if (shopOpen) {
+            int key = shopDialogueKey.find("Greet");
+            shopDialog.setText(key != -1 ? shopDialogueValue[key] : "");
+            shopDialog.draw(window);
+            shopTitle.draw(window);
+
+            for (int i = 0; i < pickups - 1; i += 1) {
+                if (mouseOver(shopInventory[i])) {
+                    int key2 = shopDialogueKey.find(pickupNames[i]);
+                    if (key2 != -1) {
+                        shopDialog.setText(shopDialogueValue[key2]);
+                        shopDialog.draw(window);
+                    }
+                }
+                shopInventory[i].draw(window);
+                buyButtons[i].borderColor = mouseOver(buyButtons[i]) ? sf::Color::Yellow : sf::Color::Black;
+                sellButtons[i].borderColor = mouseOver(sellButtons[i]) ? sf::Color::Yellow : sf::Color::Black;
+
+                buyButtons[i].draw(window);
+                sellButtons[i].draw(window);
+
+                // CLICK LOGIC
+                if (FuzzyEq(selectSwitchTimer, 0.0) && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+                    // BUY
+                    if (mouseOver(buyButtons[i])) {
+                        selectSwitchTimer = 0.2;
+                        int price = pickupPrice[i];
+                        if (player.playerInv.itemVals[0] >= price) {
+                            player.playerInv.itemVals[0] -= price;
+                            player.playerInv.addItem(pickupNames[i], 1);
+                            purchase.play();
+                        }
+                        else {
+                            error.play();
+                        }
+                    }
+
+                    // SELL
+                    if (mouseOver(sellButtons[i])) {
+                        selectSwitchTimer = 0.2;
+                        if (player.playerInv.getItemCount(pickupNames[i]) > 0) {
+                            player.playerInv.removeItem(pickupNames[i], 1);
+                            player.playerInv.itemVals[0] += pickupPrice[i];
+                            purchase.play();
+                        }
+                        else {
+                            error.play();
+                        }
+                    }
+                }
+            }
+        }
+
+
         window.display();
     }
     return 0;
