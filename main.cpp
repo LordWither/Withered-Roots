@@ -697,9 +697,6 @@ struct grassTile {
     sf::Sprite Sprite = sf::Sprite(*textureData, sf::IntRect({ 0, 0 }, {tileSize, tileSize}));
     bool isEmpty = true;
     bool isBlocked = false;
-    double F = 0.0;
-    double G = 0.0;
-    double H = 0.0;
     grassTile() {}
     grassTile(sf::Vector2<int> iPosition, sf::Vector2<double> dPosition, bool fogIsLinked = false) : originalPosition(iPosition), position(dPosition) {}
     void draw(sf::RenderWindow& window) {
@@ -790,9 +787,9 @@ double random() { //Return random double-precision float between 0 and 1, perfec
     return (double)random(0, 100) / 100.0;
 }
 
-sf::Vector2<double> snapToGrid(sf::Vector2<double> position) {
-    return sf::Vector2<double>(floor(position.x / tileSize) * tileSize, floor(position.y / tileSize) * tileSize);
-}
+//sf::Vector2<double> snapToGrid(sf::Vector2<double> position) { Might use it later, might not, commented out for now
+//    return sf::Vector2<double>(floor(position.x / tileSize) * tileSize, floor(position.y / tileSize) * tileSize);
+//}
 
 bool FuzzyEq(double self, double other, double epsilon = 1e-5) {
     return (std::abs(self - other) <= epsilon);
@@ -1157,7 +1154,7 @@ struct Ghost {
         }
     }
     void Logic(sf::Vector2<double> targetPos) {
-        if (Mode != "Night") return; // avoid operations during the day
+        if (Mode != "Night") return;
         if (FuzzyEq(targetPos, { 0.0, 0.0 })) {
             state = "Wander";
             wander(targetPos);
@@ -1398,15 +1395,13 @@ struct Mercenary {
     }
 
     void followPlayer(Player& player) {
-        // Direction player is facing
-        sf::Vector2<double> backDir = { 0.0, 1.0 }; // default Down
+        sf::Vector2<double> backDir = { 0.0, 1.0 };
 
         if (animVariant == "Up")    backDir = { 0.0, 1.0 };
         if (animVariant == "Down")  backDir = { 0.0, -1.0 };
         if (animVariant == "Left")  backDir = { 1.0, 0.0 };
         if (animVariant == "Right") backDir = { -1.0, 0.0 };
 
-        // Target position behind player
         sf::Vector2<double> target =
             player.getPosition() +
             backDir * (followSpacing * followIndex);
@@ -1416,7 +1411,6 @@ struct Mercenary {
 
         double dist = toTarget.length();
 
-        // --- DEADZONE ---
         if ((dist <= moveDeadzoneEnd && hitDeadzone == false) || (dist <= moveDeadzoneStart && hitDeadzone == true)) {
             hitDeadzone = false;
             if (Anim != "Idle") {
@@ -1428,11 +1422,9 @@ struct Mercenary {
             hitDeadzone = true;
         }
 
-        // Movement
         sf::Vector2<double> dir = toTarget.normalized();
         sf::Vector2<double> offset = dir * speed * deltaTime;
 
-        // Animation direction
         changeAnim(player.Anim, player.animVariant);
 
         trueMove(offset);
@@ -2264,6 +2256,7 @@ int main()
         moneyText.draw(window);
         if (shopOpen) {
             int key = shopDialogueKey.find("Greet");
+            shopDialog.textOffset += {150.0, 0.0};
             shopDialog.setText(key != -1 ? shopDialogueValue[key] : "");
             shopDialog.draw(window);
             shopTitle.draw(window);
@@ -2273,7 +2266,7 @@ int main()
                     int key2 = shopDialogueKey.find(pickupNames[i]);
                     if (key2 != -1) {
                         shopDialog.setText(shopDialogueValue[key2]);
-                        shopDialog.draw(window);
+                        //shopDialog.draw(window);
                     }
                 }
                 shopInventory[i].draw(window);
