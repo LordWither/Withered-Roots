@@ -1,7 +1,7 @@
 SHOP
 Prompt:Press SPACEBAR to browse the shop.
 Greet:Welcome to the shop, you can buy and sell your stuff here.
-CampfireMaterials:Campfire Materials, can be used to create a campfire, lasts for 2 minutes, you regenerate health and stamina faster near it.
+Campfire Materials:Campfire Materials, can be used to create a campfire.#Lasts for 2 minutes.#You regenerate health and stamina faster near it.
 Bandages:One-time use, heals you by 40 hp.
 Beans:One-time use, heals you by 10 hp.
 Chocolate:One-time use, you regain 40 stamina and are healed by 5 hp.

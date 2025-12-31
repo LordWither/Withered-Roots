@@ -15,7 +15,7 @@ const int textureCount = 4;
 const int pickups = 5;
 sf::Texture textureData[textureCount] = {sf::Texture("Assets\\Grass.png"),sf::Texture("Assets\\Tree.png") ,sf::Texture("Assets\\Rocks.png") ,sf::Texture("Assets\\Bush.png") };
 sf::Texture pickUpTextures[pickups] = {sf::Texture("Assets\\Bandages.png"), sf::Texture("Assets\\Beans.png"), sf::Texture("Assets\\Chocolate.png"), sf::Texture("Assets\\CampfireMaterials.png"), sf::Texture("Assets\\Cash.png")};
-std::string pickupNames[pickups] = {"Bandages", "Beans", "Chocolate", "CampfireMaterials", "Cash"};
+std::string pickupNames[pickups] = {"Bandages", "Beans", "Chocolate", "Campfire Materials", "Cash"};
 int pickupPrice[pickups - 1] = { 200, 50, 150, 150};
 int pickUpAmounts[pickups] = {1, 1, 1, 1, 20};
 char textureKeys[textureCount] = { 'G', 'T', 'R', 'B'};
@@ -58,6 +58,7 @@ sf::Music Halloween3("Assets\\Halloween3.ogg");
 sf::Music HalloweenGhost("Assets\\HalloweenGhost.wav");
 sf::Music purchase("Assets\\purchase.ogg");
 sf::Music dayTheme("Assets\\DayTheme.ogg");
+sf::Music menuTheme("Assets\\Menu.ogg");
 sf::Music pickup("Assets\\pickup.ogg");
 sf::Music chase("Assets\\chase.ogg");
 sf::Music error("Assets\\error.ogg");
@@ -66,6 +67,8 @@ sf::Music hit("Assets\\hit.ogg");
 sf::Music fire("Assets\\fire.ogg");
 sf::Music itemUse("Assets\\itemUse.ogg");
 sf::Font defFont("Assets\\Font.ttf");
+
+std::string shopDescriptionText = ""; //This is a clever workaround for displaying shop text, works well, comment here just incase anyone reading this code wonders
 
 template <typename arrType>
 struct dynArray {
@@ -346,6 +349,24 @@ void initAnims() {
     initMercenaryTextures();
 }
 
+bool starts_with(std::string self, std::string other) {
+    if (self.length() < other.length()) return false;
+    bool isSame = true;
+    for (int i = 0; i < other.length(); i += 1) {
+        if (other[i] != self[i]) {
+            isSame = false;
+            break;
+        }
+    }
+    return isSame;
+}
+
+bool starts_with(std::string self, char other) {
+    if (self.length() < 1) return false;
+    if (self[0] == other) return true;
+    return false;
+}
+
 template <typename T>
 T Lerp(T Start, T End, T alpha) {
     return Start + (End - Start) * alpha;
@@ -405,9 +426,9 @@ void initMercenaryTextures() {
         {70, 116, 140, 255}
     };
     for (int i = 0; i < animNames.size(); i += 1) {
-        if (animNames[i].starts_with("MercenaryChar")) {
-            uint8_t (*fromArr)[4] = animNames[i].starts_with("MercenaryCharM") ? mFrom : fFrom;
-            uint8_t(*toArr)[4] = animNames[i].starts_with("MercenaryCharM") ? mTo : fTo;
+        if (starts_with(animNames[i], "MercenaryChar")) {
+            uint8_t (*fromArr)[4] = starts_with(animNames[i], "MercenaryCharM") ? mFrom : fFrom;
+            uint8_t(*toArr)[4] = starts_with(animNames[i], "MercenaryCharM") ? mTo : fTo;
             dynArray<sf::Texture>& texData = animData[i];
             for (int ii = 0; ii < texData.size(); ii += 1) {
                 sf::Texture& original = texData[ii];
@@ -439,11 +460,11 @@ void initDialogues() {
     std::string line;
     std::string mode;
     while (std::getline(dialogueCont, line)) {
-        if (line.starts_with("SHOP")) {
+        if (starts_with(line, "SHOP")) {
             mode = "shop";
             continue;
         }
-        else if (line.starts_with("MERC")) {
+        else if (starts_with(line, "MERC")) {
             mode = "mercenary";
             continue;
         }
@@ -451,7 +472,12 @@ void initDialogues() {
         bool foundSemicolon = false;
         for (int i = 0; i < line.size(); i += 1) {
             if (foundSemicolon == true) {
-                value += line[i];
+                if (line[i] != '#') {
+                    value += line[i];
+                }
+                else {
+                    value += "\n";
+                }
             }
             else {
                 if (line[i] == ':') {
@@ -566,12 +592,12 @@ bool shopOpen = false;
 
 bool mouseOver(UI& ui) {
     sf::Vector2i mouse = sf::Mouse::getPosition();
-    sf::Vector2i mouseFixOffset = {-2, -15};
+    sf::Vector2i mouseFixOffset = {2, 15};
     return (
-        mouse.x + mouseFixOffset.x >= ui.position.x &&
-        mouse.x + mouseFixOffset.x <= ui.position.x + ui.size.x &&
-        mouse.y + mouseFixOffset.y >= ui.position.y &&
-        mouse.y + mouseFixOffset.y <= ui.position.y + ui.size.y
+        mouse.x + mouseFixOffset.x >= ui.position.x + ui.textOffset.x &&
+        mouse.x + mouseFixOffset.x <= ui.position.x + ui.size.x + ui.textOffset.x &&
+        mouse.y + mouseFixOffset.y >= ui.position.y + ui.textOffset.y &&
+        mouse.y + mouseFixOffset.y <= ui.position.y + ui.textOffset.y + ui.size.y
         );
 }
 
@@ -625,7 +651,7 @@ struct Animator {
         animSprite = sf::Sprite(defaultTexture, sf::IntRect(offset, size));
         Entity = entityName;
         for (int i = 0; i < animNames.size(); i += 1) {
-            if (animNames[i].starts_with(entityName)) {
+            if (starts_with(animNames[i], entityName)) {
                 animationsName.insert(animNames[i]);
                 animationsData.insert({FPS, animNames[i], !findInString(animNames[i], "Death")});
             }
@@ -642,7 +668,7 @@ struct Animator {
     void changeAnim(std::string anim, std::string variant) {
         bool found = false;
         for (int i = 0; i < animationsName.size(); i += 1) {
-            if (animationsName[i].starts_with(Entity + anim + variant)) {
+            if (starts_with(animationsName[i], Entity + anim + variant)) {
                 found = true;
                 break;
             }
@@ -660,7 +686,7 @@ struct Animator {
         bool found = false;
         int Idx = 0;
         for (int i = 0; i < animationsName.size(); i += 1) {
-            if (animationsName[i].starts_with(Entity + Anim + Variant)) {
+            if (starts_with(animationsName[i], Entity + Anim + Variant)) {
                 found = true;
                 Idx = i;
                 break;
@@ -798,7 +824,7 @@ bool FuzzyEq(double self, double other, double epsilon = 1e-5) {
 struct Inventory {
     static const int gameItems = 5;
     int itemVals[gameItems] = { 100, 1, 2, 1, 0 };
-    std::string itemNames[gameItems] = {"Cash", "Beans", "Bandages", "Chocolate", "CampfireMaterials"};
+    std::string itemNames[gameItems] = {"Cash", "Beans", "Bandages", "Chocolate", "Campfire Materials"};
     int itemRandLimits[gameItems][2] = { {50,200},{0,1},{0,2},{0,1}, {0, 0} };
     void randomize() {
         for (int i = 0; i < gameItems; i += 1) {
@@ -995,8 +1021,8 @@ struct Merchant {
         }
         bool placed = false;
         while (!placed) {
-            int ranX = random(1, 100);
-            int ranY = random(1, 100);
+            int ranX = random(5, 95); // By limiting the shop teleport it becomes much easier to find
+            int ranY = random(5, 95);
             grassTile& tile = tileMap[ranY][ranX];
             if (tile.isEmpty) {
                 associatedTile = &tile;
@@ -1598,7 +1624,7 @@ struct Campfire {
         sf::Vector2<double> playerCentre = playerPos + sf::Vector2<double>(50.0, 50.0);
         sf::Vector2<double> fogCentre = (position + cameraPos) + (sf::Vector2<double>((double)tileSize, (double)tileSize) / 2.0);
         Sprite.setScale(sf::Vector2f(scale.x, scale.y));
-        Sprite.setColor(colorTint);
+        Sprite.setColor(dayTint); //Campfire retains the day color tint even at night
         Sprite.setPosition(doubleToFloat(position + cameraPos));
         window.draw(Sprite);
     }
@@ -1771,8 +1797,8 @@ void spawnMercenaries() {
     killUnhiredMercenaries();
     const int currSize = mercenaries.size();
     for (int i = 0; i < 3 - currSize;) {
-        int ranX = random(0, 100);
-        int ranY = random(0, 100);
+        int ranX = random(10, 90);
+        int ranY = random(10, 90);
         grassTile& tile = tileMap[ranY][ranX];
         if (tile.isEmpty) {
             mercenaries.insert({ (tile.position) , false});
@@ -1999,6 +2025,10 @@ int main()
     sf::VideoMode screenMode = sf::VideoMode::getDesktopMode();
     sf::RenderWindow window(sf::VideoMode(screenMode), "Withered Roots", sf::Style::None);
     windowSize = sf::Vector2<int>(screenMode.size.x, screenMode.size.y);
+    UI GameOver({ (double)windowSize.x, (double)windowSize.y }, { 0.0, 0.0 });
+    UI menuTitle({ 500.0, 100.0 }, { (double)windowSize.x / 2.0 - 250.0, (double)windowSize.y / 2.0 - 200.0 });
+    UI menuPlay({ 200.0, 50.0 }, { (double)windowSize.x / 2.0 - 100.0, (double)windowSize.y / 2.0 });
+    UI menuQuit({ 200.0, 50.0 }, { (double)windowSize.x / 2.0 - 100.0, (double)windowSize.y / 2.0 + 100.0 });
     initAnims();
     initTileMap();
     initDialogues();
@@ -2011,31 +2041,25 @@ int main()
     sf::Clock deltaTimer;
     deltaTimer.start();
     dayTheme.setLooping(true);
-    dayTheme.play();
     chase.setLooping(true);
     chase.play();
     chase.setVolume(0.0);
     makePickups();
     spawnMercenaries();
-    // --- SHOP DIALOG ---
+    /*Shop Stuff*/
     shopDialog.position = { 20.0, windowSize.y - 260.0 };
     shopDialog.size = { windowSize.x - 40.0, 240.0 };
     shopDialog.backgroundColor = sf::Color(20, 20, 20, 220);
     shopDialog.borderColor = sf::Color::White;
-
-    // Title
     shopTitle.position = { shopDialog.position.x + 20.0, shopDialog.position.y + 10.0 };
     shopTitle.size = { 200.0, 30.0 };
-    shopTitle.setText("MERCHANT SHOP");
+    shopTitle.setText("Merchant Shop");
     shopTitle.fontSize = 22;
     shopTitle.backgroundColor = sf::Color(0, 0, 0, 0);
     shopTitle.borderColor = sf::Color(0, 0, 0, 0);
-
-    // Item rows
+    /*Shop Items*/
     for (int i = 0; i < pickups - 1; i++) {
         double rowY = shopDialog.position.y + 50.0 + i * 40.0;
-
-        // Item label
         shopInventory[i].position = { shopDialog.position.x + 20.0, rowY };
         shopInventory[i].size = { 260.0, 30.0 };
         shopInventory[i].fontSize = 18;
@@ -2044,23 +2068,21 @@ int main()
         shopInventory[i].setText(
             pickupNames[i] + " : $" + std::to_string(pickupPrice[i])
         );
-
-        // BUY button
+        if (pickupNames[i] == "Campfire Materials") {
+            shopInventory[i].textOffset = {50.0, 0.0};
+        }
         buyButtons[i].position = { shopDialog.position.x + 320.0, rowY };
         buyButtons[i].size = { 80.0, 30.0 };
-        buyButtons[i].setText("BUY");
+        buyButtons[i].setText("Buy");
         buyButtons[i].backgroundColor = sf::Color(30, 120, 30);
         buyButtons[i].borderColor = sf::Color::Black;
-
-        // SELL button
         sellButtons[i].position = { shopDialog.position.x + 420.0, rowY };
         sellButtons[i].size = { 80.0, 30.0 };
-        sellButtons[i].setText("SELL");
+        sellButtons[i].setText("Sell");
         sellButtons[i].backgroundColor = sf::Color(120, 30, 30);
         sellButtons[i].borderColor = sf::Color::Black;
     }
-
-
+    /*Health, stamina, and money*/
     healthBar.position = sf::Vector2<double>( 30.0, windowSize.y - 90.0 );
     healthBar.size = { 300, 20 };
     healthBar.backgroundColor = sf::Color(120, 20, 20);
@@ -2083,7 +2105,7 @@ int main()
     int slotCount = 4;
     float slotSize = 48;
     float startX = windowSize.x / 2.0 - (slotCount * slotSize) / 2.0;
-
+    /*Inventory Stuff*/
     for (int i = 0; i < slotCount; i += 1) {
         UI& slot = inventorySlots[i];
         slot.position = sf::Vector2<double>(startX + i * slotSize + (slot.borderPixel + 1) * i, windowSize.y - (slotSize*2.0));
@@ -2096,6 +2118,73 @@ int main()
     }
     int selectedIndex = -1;
     double selectSwitchTimer = 0.0;
+    double menuGlowAlpha = 0.0;
+    double menuGlowSpeed = 40.0;
+    sf::Color glowStart = sf::Color::Color(40, 64, 0, 255);
+    sf::Color glowEnd = sf::Color::Color(160, 255, 0, 255);
+    bool mainMenuClose = false;
+    menuTheme.setLooping(true);
+    menuTheme.play();
+    while (window.isOpen() && !mainMenuClose) { // Main menu
+        deltaTime = deltaTimer.restart().asSeconds();
+        menuGlowAlpha = (menuGlowAlpha + deltaTime * menuGlowSpeed);
+        while (menuGlowAlpha > 360) {
+            menuGlowAlpha -= 360.0;
+        }
+        double lerpAlpha = std::sin(menuGlowAlpha * pi / 180.0) * 0.5 + 0.5;
+        menuTitle.backgroundColor = { 0, 0, 0, 255 };
+        menuTitle.borderColor = Lerp(glowStart, glowEnd, lerpAlpha);
+        menuTitle.textColor = Lerp(glowStart, glowEnd, lerpAlpha);
+        menuTitle.fontSize = 40;
+        menuPlay.backgroundColor = { 0, 0, 0, 255 };
+        menuPlay.borderColor = Lerp(glowStart, glowEnd, lerpAlpha);
+        menuPlay.textColor = Lerp(glowStart, glowEnd, lerpAlpha);
+        menuPlay.fontSize = 30;
+        menuQuit.backgroundColor = { 0, 0, 0, 255 };
+        menuQuit.borderColor = Lerp(glowStart, glowEnd, lerpAlpha);
+        menuQuit.textColor = Lerp(glowStart, glowEnd, lerpAlpha);
+        menuTitle.borderColor.a = 128;
+        menuPlay.borderColor.a = 128;
+        menuQuit.borderColor.a = 128;
+        menuQuit.fontSize = 30;
+        menuTitle.setText("Withered Roots");
+        menuPlay.setText("Play");
+        menuQuit.setText("Quit");
+        while (const std::optional event = window.pollEvent())
+        {
+            if ((*event).is<sf::Event::Closed>()) {
+                window.close();
+                return 0;
+            }
+        }
+        if (mouseOver(menuQuit)) {
+            menuQuit.borderColor = glowEnd;
+            menuQuit.textColor = glowEnd;
+        }
+        if (mouseOver(menuPlay)) {
+            menuPlay.borderColor = glowEnd;
+            menuPlay.textColor = glowEnd;
+        }
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
+            if (mouseOver(menuQuit)) {
+                pickup.play();
+                window.close();
+                return 0;
+            }
+            else if (mouseOver(menuPlay)) {
+                pickup.play();
+                mainMenuClose = true;
+            }
+        }
+        window.clear();
+        menuTitle.draw(window);
+        menuPlay.draw(window);
+        menuQuit.draw(window);
+        window.display();
+    }
+    menuTheme.stop();
+    dayTheme.play(); // Start playing the day music
+    /*Main game loop*/
     while (window.isOpen())
     {
         colorTint = dayTint;
@@ -2108,11 +2197,15 @@ int main()
         if (player.dead) {
             player.deathTimer = std::min(player.deathTimer + deltaTime, 10.0);
         }
-        if (FuzzyEq(player.deathTimer, 10.0)) {
-            UI GameOver({ (double)windowSize.x, (double)windowSize.y }, { 0.0, 0.0 });
+        if (FuzzyEq(player.deathTimer, 10.0)) { // Death menu logic, triggers once 10 seconds have passed since death
             GameOver.backgroundColor = sf::Color::Color(0, 0, 0, 255);
             GameOver.borderColor = sf::Color::Color(0, 0, 0, 0);
-            GameOver.textColor = sf::Color::Color(128, 0, 0, 255);
+            GameOver.textColor = sf::Color::Color(80, 0, 0, 255);
+            dayTheme.stop();
+            for (int i = 0; i < 6; i += 1) {
+                (*nightTimeAudios[i]).stop();
+            }
+            menuTheme.play();
             GameOver.setText("Game Over!\nYou survived " + std::to_string(nightsSurvived) + " nights!\nPress Escape to exit");
             while (window.isOpen()) {
                 deltaTimer.restart();
@@ -2185,11 +2278,14 @@ int main()
                     else if (name == "Bandages") {
                         player.Health = std::min(player.Health + 40.0, 100.0);
                     }
-                    else if (name == "CampfireMaterials") {
+                    else if (name == "Campfire Materials") {
                         campfires.insert({ player.getPosition() - cameraPos });
                     }
                     player.playerInv.removeItem(name, 1);
                     itemUse.play();
+                }
+                else {
+                    error.play();
                 }
             }
             selectedIndex = -1;
@@ -2232,7 +2328,7 @@ int main()
         healthBar.size.x = (player.Health / 100.0) * 300.0;
         staminaBar.size.x = (player.stamina / 100.0) * 300.0;
         timeText.setText("Time Left: " + std::to_string(secondsLeft));
-        moneyText.setText("Money: $" + std::to_string(player.playerInv.itemVals[0]) + ".0");
+        moneyText.setText("Cash: $" + std::to_string(player.playerInv.itemVals[0]) + ".0");
         for (int i = 0; i < pickups - 1; i += 1) {
             int count = player.playerInv.getItemCount(pickupNames[i]);
             if (count > 0) {
@@ -2255,9 +2351,14 @@ int main()
         timeText.draw(window);
         moneyText.draw(window);
         if (shopOpen) {
-            int key = shopDialogueKey.find("Greet");
-            shopDialog.textOffset += {150.0, 0.0};
-            shopDialog.setText(key != -1 ? shopDialogueValue[key] : "");
+            shopDialog.textOffset = {100.0, 0.0}; //I'm moving this by 100 pixels so that it doesn't touch the shop buttons
+            if (shopDescriptionText != "") { //Remember that std::string that was part of the clever workaround, here is the actual code for it
+                shopDialog.setText(shopDescriptionText);
+                shopDescriptionText = "";
+            }else {
+                int key = shopDialogueKey.find("Greet");
+                shopDialog.setText(key != -1 ? shopDialogueValue[key] : "");
+            }
             shopDialog.draw(window);
             shopTitle.draw(window);
 
@@ -2265,18 +2366,19 @@ int main()
                 if (mouseOver(shopInventory[i])) {
                     int key2 = shopDialogueKey.find(pickupNames[i]);
                     if (key2 != -1) {
-                        shopDialog.setText(shopDialogueValue[key2]);
-                        //shopDialog.draw(window);
+                        shopDescriptionText = shopDialogueValue[key2];
                     }
                 }
                 shopInventory[i].draw(window);
+                //Hover logic, the idea is, when you hover over an item name, the shop dialogue changes to the description of the item
                 buyButtons[i].borderColor = mouseOver(buyButtons[i]) ? sf::Color::Yellow : sf::Color::Black;
                 sellButtons[i].borderColor = mouseOver(sellButtons[i]) ? sf::Color::Yellow : sf::Color::Black;
 
                 buyButtons[i].draw(window);
                 sellButtons[i].draw(window);
 
-                // CLICK LOGIC
+                //Really simple logic to get a clickable menu, we check if the mouse left button is pressed, and then check if the mouse is over a button while being pressed
+                //There's only one scenario where the mouse being over a button and being pressed makes sense, it's when you want to click a button
                 if (FuzzyEq(selectSwitchTimer, 0.0) && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
                     // BUY
                     if (mouseOver(buyButtons[i])) {
