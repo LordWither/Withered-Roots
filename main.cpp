@@ -29,10 +29,10 @@ sf::Texture campfire("Assets\\Campfire.png");
 
 const int worldSize = 100;
 const int tileSize = 100;
-sf::Color dayTint = sf::Color::Color(255, 200, 100, 255U);
-sf::Color nightTint = sf::Color::Color(29, 89, 255, 255U);
-sf::Color colorTint = sf::Color::Color(255, 255, 255, 255U);
-sf::Color fogColor = sf::Color::Color(128, 128, 128, 255U);
+sf::Color dayTint(255, 200, 100, 255U);
+sf::Color nightTint(29, 89, 255, 255U);
+sf::Color colorTint(255, 255, 255, 255U);
+sf::Color fogColor(128, 128, 128, 255U);
 std::string Mode = "Day";
 const int pickUpCount = 10;
 double currentTime = 0.0;
@@ -441,12 +441,12 @@ void initMercenaryTextures() {
                             uint8_t *fromColors = fromArr[iii];
                             uint8_t *toColors = toArr[iii];
                             if (pixel.r == fromColors[0] && pixel.g == fromColors[1] && pixel.b == fromColors[2] && pixel.a == fromColors[3]) {
-                                workImg.setPixel({ x, y }, sf::Color::Color(toColors[0], toColors[1], toColors[2], toColors[3]));
+                                workImg.setPixel({ x, y }, sf::Color(toColors[0], toColors[1], toColors[2], toColors[3]));
                             }
                         }
                     }
                 }
-                original.loadFromImage(workImg);
+                (void)(original.loadFromImage(workImg));
             }
         }
     }
@@ -499,7 +499,7 @@ void initDialogues() {
 }
 
 sf::Color Lerp(sf::Color Start, sf::Color End, double alpha) {
-    return sf::Color::Color(
+    return sf::Color(
         (uint8_t)((double)Start.r + ((double)End.r - (double)Start.r) * alpha),
         (uint8_t)((double)Start.g + ((double)End.g - (double)Start.g) * alpha),
         (uint8_t)((double)Start.b + ((double)End.b - (double)Start.b) * alpha),
@@ -508,7 +508,7 @@ sf::Color Lerp(sf::Color Start, sf::Color End, double alpha) {
 }
 
 sf::Color Multiply(sf::Color Start, sf::Color End, double influence = 1.0) {
-    return sf::Color::Color(
+    return sf::Color(
         (uint8_t)(((int)Start.r * (int)(Lerp<double>(255, End.r, influence))) / 255),
         (uint8_t)(((int)Start.g * (int)(Lerp<double>(255, End.g, influence))) / 255),
         (uint8_t)(((int)Start.b * (int)(Lerp<double>(255, End.b, influence))) / 255),
@@ -710,7 +710,7 @@ struct Animator {
             scale = spriteScale;
             animSprite.setScale(doubleToFloat(scale));
         }
-        animSprite.setColor(Multiply(Lerp(sf::Color::Color(255, 255, 255, 255), colorTint, 0.5), customTint));
+        animSprite.setColor(Multiply(Lerp(sf::Color(255, 255, 255, 255), colorTint, 0.5), customTint));
         animSprite.setPosition(doubleToFloat(position));
         window.draw(animSprite);
     }
@@ -776,7 +776,7 @@ struct mapDecor {
 };
 
 sf::Color getRanColor() {
-    return sf::Color::Color(rand() % 255, rand() % 255, rand() % 255, 100U);
+    return sf::Color(rand() % 255, rand() % 255, rand() % 255, 100U);
 }
 
 grassTile tileMap[worldSize][worldSize];
@@ -873,7 +873,7 @@ struct Player {
     Inventory playerInv;
     sf::Vector2<double> boundsMax = sf::Vector2<double>(windowSize.x * 0.7, windowSize.y * 0.7);
     sf::Vector2<double> boundsMin = sf::Vector2<double>(windowSize.x * 0.3, windowSize.y * 0.3);;
-    sf::Color color = sf::Color::Color(255, 255, 255, 255U);
+    sf::Color color = sf::Color(255, 255, 255, 255U);
     Animator animator = Animator(Gender, size, speedToAnimFPSRatio * speed, offset);
     double hitTimer = 0.0;
     double hitCooldown = 0.5;
@@ -988,7 +988,7 @@ struct Merchant {
     sf::Vector2<double> spriteOffset = { 10.0, -15.0 };
     sf::Vector2<double> spritePosition = { spriteOffset.x, spriteOffset.y };
     double animFPS = 5.0 / 200.0 * 250.0;
-    sf::Color color = sf::Color::Color(255, 255, 255, 255U);
+    sf::Color color = sf::Color(255, 255, 255, 255U);
     sf::Sprite shop{ merchantShopTex, sf::IntRect({0, 0}, size) };
     Animator animator = Animator("Merchant", { 48, 64 }, animFPS, {0, 0});
     std::string fallBackText = "Fallback Text";
@@ -998,8 +998,8 @@ struct Merchant {
     double hitTimer = 0.0;
     double hitCooldown = 0.5;
     Merchant() {
-        shopPrompt.backgroundColor = sf::Color::Color(0, 0, 0, 0);
-        shopPrompt.borderColor = sf::Color::Color(0, 0, 0, 0);
+        shopPrompt.backgroundColor = sf::Color(0, 0, 0, 0);
+        shopPrompt.borderColor = sf::Color(0, 0, 0, 0);
         int key = shopDialogueKey.find("Prompt");
         std::string data = fallBackText;
         if (key != -1) {
@@ -1086,7 +1086,7 @@ struct Ghost {
     std::string state = "Wander";
     double Health = 100.0;
     double speed = 300.0;
-    sf::Color color = sf::Color::Color(255, 255, 255, 255U);
+    sf::Color color = sf::Color(255, 255, 255, 255U);
     sf::Sprite ghostEyes = sf::Sprite(ghostEyesTex);
     static const int smokeAmount = 4;
     int correctedSmokeAmount = smokeAmount;
@@ -1365,8 +1365,8 @@ struct Mercenary {
     double healRate = 1.0;
     std::string fallback = "Press SPACEBAR to hire this npc for $200.";
     Mercenary() {
-        hirePrompt.backgroundColor = sf::Color::Color(0, 0, 0, 0);
-        hirePrompt.borderColor = sf::Color::Color(0, 0, 0, 0);
+        hirePrompt.backgroundColor = sf::Color(0, 0, 0, 0);
+        hirePrompt.borderColor = sf::Color(0, 0, 0, 0);
         int key = mercenaryDialogueKey.find("Prompt");
         hirePrompt.setText(key != -1 ? mercenaryDialogueValue[key] : fallback);
         animator.Anim = Anim;
@@ -1398,8 +1398,8 @@ struct Mercenary {
         position = offset;
     }
     Mercenary(sf::Vector2<double> initialPos, bool hired = false, int followIndex = 0) : hired(hired), followIndex(followIndex) {
-        hirePrompt.backgroundColor = sf::Color::Color(0, 0, 0, 0);
-        hirePrompt.borderColor = sf::Color::Color(0, 0, 0, 0);
+        hirePrompt.backgroundColor = sf::Color(0, 0, 0, 0);
+        hirePrompt.borderColor = sf::Color(0, 0, 0, 0);
         int key = mercenaryDialogueKey.find("Prompt");
         hirePrompt.setText(key != -1 ? mercenaryDialogueValue[key] : fallback);
         bareMove(initialPos + cameraPos + getSize() / 2.0);
@@ -2020,6 +2020,7 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
 
 int main()
 {
+    std::cout << "Game Started!\n";
     srand(time(0));
     int nightsSurvived = 0;
     sf::VideoMode screenMode = sf::VideoMode::getDesktopMode();
@@ -2120,8 +2121,8 @@ int main()
     double selectSwitchTimer = 0.0;
     double menuGlowAlpha = 0.0;
     double menuGlowSpeed = 40.0;
-    sf::Color glowStart = sf::Color::Color(40, 64, 0, 255);
-    sf::Color glowEnd = sf::Color::Color(160, 255, 0, 255);
+    sf::Color glowStart(40, 64, 0, 255);
+    sf::Color glowEnd(160, 255, 0, 255);
     bool mainMenuClose = false;
     menuTheme.setLooping(true);
     menuTheme.play();
@@ -2198,9 +2199,9 @@ int main()
             player.deathTimer = std::min(player.deathTimer + deltaTime, 10.0);
         }
         if (FuzzyEq(player.deathTimer, 10.0)) { // Death menu logic, triggers once 10 seconds have passed since death
-            GameOver.backgroundColor = sf::Color::Color(0, 0, 0, 255);
-            GameOver.borderColor = sf::Color::Color(0, 0, 0, 0);
-            GameOver.textColor = sf::Color::Color(80, 0, 0, 255);
+            GameOver.backgroundColor = sf::Color(0, 0, 0, 255);
+            GameOver.borderColor = sf::Color(0, 0, 0, 0);
+            GameOver.textColor = sf::Color(80, 0, 0, 255);
             dayTheme.stop();
             for (int i = 0; i < 6; i += 1) {
                 (*nightTimeAudios[i]).stop();
@@ -2340,7 +2341,7 @@ int main()
             else {
                 inventorySlots[i].setText("");
                 inventorySlots[i].background.setTexture(nullptr);
-                inventorySlots[i].backgroundColor = sf::Color::Color(50, 50, 50, 255);
+                inventorySlots[i].backgroundColor = sf::Color(50, 50, 50, 255);
                 inventorySlots[i].borderColor = sf::Color::Black;
             }
             inventorySlots[i].borderColor = (i == selectedIndex) ? sf::Color::Yellow : sf::Color::Black;
