@@ -2020,13 +2020,15 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
 
 int main()
 {
-    std::cout << "Game Started!\n";
     srand(time(0));
     int nightsSurvived = 0;
     sf::VideoMode screenMode = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(screenMode, "Withered Roots", sf::Style::None);
+    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Withered Roots", sf::Style::None);
     window.setView(window.getDefaultView());
     window.setVerticalSyncEnabled(true);
+    window.display();
+    window.setPosition(sf::Vector2i(0, 0));
+    window.display();
     windowSize = sf::Vector2<int>(screenMode.size.x, screenMode.size.y);
     UI GameOver({ (double)windowSize.x, (double)windowSize.y }, { 0.0, 0.0 });
     UI menuTitle({ 500.0, 100.0 }, { (double)windowSize.x / 2.0 - 250.0, (double)windowSize.y / 2.0 - 200.0 });
