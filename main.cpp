@@ -549,12 +549,12 @@ struct UI {
             setText(Data);
         }
     }
-    bool mouseOver() {
-        sf::Vector2i mouse = sf::Mouse::getPosition();
+    bool mouseOver(sf::RenderWindow& window) {
+        sf::Vector2f mouse = window.mapPixelToCoords(sf::Mouse::getPosition());
         return (
-            mouse.x - size.x >= position.x &&
+            mouse.x >= position.x &&
             mouse.x <= position.x + size.x &&
-            mouse.y - size.y >= position.y &&
+            mouse.y >= position.y &&
             mouse.y <= position.y + size.y
             );
     }
@@ -590,14 +590,13 @@ UI shopInventory[pickups - 1];
 
 bool shopOpen = false;
 
-bool mouseOver(UI& ui) {
-    sf::Vector2i mouse = sf::Mouse::getPosition();
-    sf::Vector2i mouseFixOffset = {2, 15};
+bool mouseOver(UI& ui, sf::RenderWindow& window) {
+    sf::Vector2f mouse = window.mapPixelToCoords(sf::Mouse::getPosition());
     return (
-        mouse.x + mouseFixOffset.x >= ui.position.x + ui.textOffset.x &&
-        mouse.x + mouseFixOffset.x <= ui.position.x + ui.size.x + ui.textOffset.x &&
-        mouse.y + mouseFixOffset.y >= ui.position.y + ui.textOffset.y &&
-        mouse.y + mouseFixOffset.y <= ui.position.y + ui.textOffset.y + ui.size.y
+        mouse.x >= ui.position.x + ui.textOffset.x &&
+        mouse.x <= ui.position.x + ui.size.x + ui.textOffset.x &&
+        mouse.y >= ui.position.y + ui.textOffset.y &&
+        mouse.y <= ui.position.y + ui.textOffset.y + ui.size.y
         );
 }
 
@@ -957,7 +956,7 @@ struct Player {
         bool canScrollX = shouldScrollX && cameraPos.x + offset.x <= 0 &&
             cameraPos.x + offset.x >= -(worldSize * tileSize - windowSize.x);
         bool canScrollY = shouldScrollY && cameraPos.y + offset.y <= 0 &&
-            cameraPos.y + offset.y >= -(worldSize * tileSize - windowSize.y + tileSize / 4.0);
+            cameraPos.y + offset.y >= -(worldSize * tileSize - windowSize.y + tileSize / 1.0);
         if (!canScrollX) {
             if (shouldScrollX) {
                 cameraPos.x = std::clamp<double>(cameraPos.x + offset.x, -(worldSize * tileSize - windowSize.x), 0);
@@ -968,11 +967,11 @@ struct Player {
         }
         if (!canScrollY) {
             if (shouldScrollY) {
-                cameraPos.y = std::clamp<double>(cameraPos.y + offset.y, -(worldSize * tileSize - windowSize.y + tileSize / 4.0), 0);
+                cameraPos.y = std::clamp<double>(cameraPos.y + offset.y, -(worldSize * tileSize - windowSize.y + tileSize / 1.0), 0);
             }
             trueMove({ 0.0, realOffset.y });
         } else {
-            cameraPos.y = std::clamp<double>(cameraPos.y + offset.y, -(worldSize * tileSize - windowSize.y + tileSize / 4.0), 0);
+            cameraPos.y = std::clamp<double>(cameraPos.y + offset.y, -(worldSize * tileSize - windowSize.y + tileSize / 1.0), 0);
         }
     }
     void draw(sf::RenderWindow &window) {
@@ -2029,7 +2028,7 @@ int main()
     window.display();
     window.setPosition(sf::Vector2i(0, 0));
     window.display();
-    windowSize = sf::Vector2<int>(screenMode.size.x, screenMode.size.y);
+    windowSize = sf::Vector2<int>((int)window.getSize().x, (int)window.getSize().y);
     UI GameOver({ (double)windowSize.x, (double)windowSize.y }, { 0.0, 0.0 });
     UI menuTitle({ 500.0, 100.0 }, { (double)windowSize.x / 2.0 - 250.0, (double)windowSize.y / 2.0 - 200.0 });
     UI menuPlay({ 200.0, 50.0 }, { (double)windowSize.x / 2.0 - 100.0, (double)windowSize.y / 2.0 });
@@ -2162,21 +2161,21 @@ int main()
                 return 0;
             }
         }
-        if (mouseOver(menuQuit)) {
+        if (mouseOver(menuQuit, window)) {
             menuQuit.borderColor = glowEnd;
             menuQuit.textColor = glowEnd;
         }
-        if (mouseOver(menuPlay)) {
+        if (mouseOver(menuPlay, window)) {
             menuPlay.borderColor = glowEnd;
             menuPlay.textColor = glowEnd;
         }
         if (sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
-            if (mouseOver(menuQuit)) {
+            if (mouseOver(menuQuit, window)) {
                 pickup.play();
                 window.close();
                 return 0;
             }
-            else if (mouseOver(menuPlay)) {
+            else if (mouseOver(menuPlay, window)) {
                 pickup.play();
                 mainMenuClose = true;
             }
@@ -2368,7 +2367,7 @@ int main()
             shopTitle.draw(window);
 
             for (int i = 0; i < pickups - 1; i += 1) {
-                if (mouseOver(shopInventory[i])) {
+                if (mouseOver(shopInventory[i], window)) {
                     int key2 = shopDialogueKey.find(pickupNames[i]);
                     if (key2 != -1) {
                         shopDescriptionText = shopDialogueValue[key2];
@@ -2376,8 +2375,8 @@ int main()
                 }
                 shopInventory[i].draw(window);
                 //Hover logic, the idea is, when you hover over an item name, the shop dialogue changes to the description of the item
-                buyButtons[i].borderColor = mouseOver(buyButtons[i]) ? sf::Color::Yellow : sf::Color::Black;
-                sellButtons[i].borderColor = mouseOver(sellButtons[i]) ? sf::Color::Yellow : sf::Color::Black;
+                buyButtons[i].borderColor = mouseOver(buyButtons[i], window) ? sf::Color::Yellow : sf::Color::Black;
+                sellButtons[i].borderColor = mouseOver(sellButtons[i], window) ? sf::Color::Yellow : sf::Color::Black;
 
                 buyButtons[i].draw(window);
                 sellButtons[i].draw(window);
@@ -2386,7 +2385,7 @@ int main()
                 //There's only one scenario where the mouse being over a button and being pressed makes sense, it's when you want to click a button
                 if (FuzzyEq(selectSwitchTimer, 0.0) && sf::Mouse::isButtonPressed(sf::Mouse::Button::Left)) {
                     // BUY
-                    if (mouseOver(buyButtons[i])) {
+                    if (mouseOver(buyButtons[i], window)) {
                         selectSwitchTimer = 0.2;
                         int price = pickupPrice[i];
                         if (player.playerInv.itemVals[0] >= price) {
@@ -2400,7 +2399,7 @@ int main()
                     }
 
                     // SELL
-                    if (mouseOver(sellButtons[i])) {
+                    if (mouseOver(sellButtons[i], window)) {
                         selectSwitchTimer = 0.2;
                         if (player.playerInv.getItemCount(pickupNames[i]) > 0) {
                             player.playerInv.removeItem(pickupNames[i], 1);
