@@ -2022,7 +2022,8 @@ int main()
     srand(time(0));
     int nightsSurvived = 0;
     sf::VideoMode screenMode = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow window(sf::VideoMode::getDesktopMode(), "Withered Roots", sf::Style::None);
+    screenMode.size.y += 1.0;
+    sf::RenderWindow window(screenMode, "Withered Roots", sf::Style::None);
     window.setView(window.getDefaultView());
     window.setVerticalSyncEnabled(true);
     window.display();
