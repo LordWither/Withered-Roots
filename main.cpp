@@ -81,7 +81,7 @@ bool contains(std::vector<T> haystack, T needle) {
     return false;
 }
 template <typename T>
-bool find(std::vector<T> haystack, T needle) {
+int find(std::vector<T> haystack, T needle) {
     for (int i = 0; i < haystack.size(); i += 1) {
         if (haystack[i] == needle) {
             return i;
