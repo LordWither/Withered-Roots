@@ -72,7 +72,7 @@ sf::Font defFont("./Assets/Font.ttf");
 std::string shopDescriptionText = ""; //This is a clever workaround for displaying shop text, works well, comment here just incase anyone reading this code wonders
 
 template <typename T>
-bool contains(std::vector<T> haystack, T needle) {
+bool contains(std::vector<T>& haystack, T needle) {
     for (int i = 0; i < haystack.size(); i += 1) {
         if (haystack[i] == needle) {
             return true;
@@ -81,7 +81,7 @@ bool contains(std::vector<T> haystack, T needle) {
     return false;
 }
 template <typename T>
-int find(std::vector<T> haystack, T needle) {
+int find(std::vector<T>& haystack, T needle) {
     for (int i = 0; i < haystack.size(); i += 1) {
         if (haystack[i] == needle) {
             return i;
