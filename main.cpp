@@ -2,6 +2,7 @@
 #include <SFML/Audio.hpp>
 #include <iostream>
 #include <fstream>
+#include <vector>
 #include <cmath>
 
 sf::Vector2<float> doubleToFloat(sf::Vector2<double> inVector) {
@@ -70,282 +71,176 @@ sf::Font defFont("./Assets/Font.ttf");
 
 std::string shopDescriptionText = ""; //This is a clever workaround for displaying shop text, works well, comment here just incase anyone reading this code wonders
 
-template <typename arrType>
-struct dynArray {
-    arrType* Core = nullptr;
-    int length = 1;
-    int occupiedLength = 0;
-    bool accurateSizing = false;
-    dynArray(bool accurateSizing = false) : Core(nullptr), accurateSizing(accurateSizing) {
-        length = 1;
-        if (Core != nullptr) delete[] Core;
-        Core = new arrType[length];
-        occupiedLength = 0;
-    };
-    dynArray(arrType* initialSet, int setLength, bool accurateSizing = false) : Core(nullptr), accurateSizing(accurateSizing) {
-        if (initialSet == nullptr || setLength <= 0) {
-            return;
+template <typename T>
+bool contains(std::vector<T> haystack, T needle) {
+    for (int i = 0; i < haystack.size(); i += 1) {
+        if (haystack[i] == needle) {
+            return true;
         }
-        if (Core != nullptr) delete[] Core;
-        setLength = std::max(setLength, 1);
-        Core = new arrType[setLength];
-        for (int i = 0; i < setLength; i += 1) {
-            Core[i] = initialSet[i];
-        }
-        delete[] initialSet;
-        length = setLength;
-        occupiedLength = setLength;
     }
-    void resize(int newSize) {
-        length = std::max(newSize, 1);
-        arrType* tmp = new arrType[length];
-        int iterator;
-        if (occupiedLength <= length)
-            iterator = occupiedLength;
-        else
-            iterator = length;
-        occupiedLength = 0;
-        for (int i = 0; i < iterator; i += 1) {
-            tmp[i] = Core[i];
-            occupiedLength += 1;
+    return false;
+}
+template <typename T>
+bool find(std::vector<T> haystack, T needle) {
+    for (int i = 0; i < haystack.size(); i += 1) {
+        if (haystack[i] == needle) {
+            return i;
         }
-        delete[] Core;
-        Core = tmp;
     }
-    void insert(arrType data) {
-        if (occupiedLength < length) {
-            Core[occupiedLength] = data;
-            occupiedLength += 1;
-            return;
-        }
-        if (accurateSizing)
-            length += 1;
-        else
-            length *= 2;
-        arrType* tmp = new arrType[length];
-        for (int i = 0; i < occupiedLength; i += 1) {
-            tmp[i] = Core[i];
-        }
-        tmp[occupiedLength] = data;
-        occupiedLength += 1;
-        delete[] Core;
-        Core = tmp;
-    }
-    void remove(int Index) {
-        if (Index >= occupiedLength) return;
-        length = std::max(length - 1, 1);
-        arrType* tmp = new arrType[length];
-        for (int i = 0; i < occupiedLength; i += 1) {
-            if (i < Index)
-                tmp[i] = Core[i];
-            else if (i > Index)
-                tmp[i - 1] = Core[i];
-        }
-        occupiedLength = std::max(occupiedLength - 1, 0);
-        delete[] Core;
-        Core = tmp;
-    }
-    int size() {
-        return occupiedLength;
-    }
-    int find(arrType item) {
-        for (int i = 0; i < occupiedLength; i += 1) {
-            if (Core[i] == item) {
-                return i;
-            }
-        }
-        return -1;
-    }
-    bool contains(arrType item) {
-        for (int i = 0; i < occupiedLength; i += 1) {
-            if (Core[i] == item) {
-                return true;
-            }
-        }
-        return false;
-    }
-    arrType& operator[](int index) {
-        return Core[index];
-    }
-    dynArray(const dynArray& other) {
-        length = std::max(other.length, 1);
-        occupiedLength = other.occupiedLength;
-        Core = new arrType[length];
-        for (int i = 0; i < occupiedLength; i += 1) {
-            Core[i] = other.Core[i];
-        }
-    };
-    dynArray& operator=(const dynArray& other) {
-        if (this == &other) return *this;
-        delete[] Core;
-        length = std::max(other.length, 1);
-        occupiedLength = other.occupiedLength;
-        Core = new arrType[length];
-        for (int i = 0; i < occupiedLength; i += 1) {
-            Core[i] = other.Core[i];
-        }
-        return *this;
-    };
-    ~dynArray() {
-        delete[] Core;
-        Core = nullptr;
-        length = 0;
-        occupiedLength = 0;
-    }
-};
+    return -1;
+}
 
-
-dynArray<std::string> animNames;
-dynArray<dynArray<sf::Texture>> animData;
+std::vector<std::string> animNames;
+std::vector<std::vector<sf::Texture>> animData;
 void initMercenaryTextures();
 void initAnims() {
-    dynArray<sf::Texture> charMIdleUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charMIdleDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charMIdleLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charMIdleRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charMWalkUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charMWalkDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charMWalkLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charMWalkRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charMDeathUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death8.png")}, 8 };
-    dynArray<sf::Texture> charMDeathDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death8.png")}, 8 };
-    dynArray<sf::Texture> charMDeathLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death8.png")}, 8 };
-    dynArray<sf::Texture> charMDeathRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death8.png")}, 8 };
-    dynArray<sf::Texture> charFIdleUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charFIdleDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charFIdleLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charFIdleRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle8.png")}, 8 };
-    dynArray<sf::Texture> charFWalkUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charFWalkDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charFWalkLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charFWalkRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk8.png")}, 8 };
-    dynArray<sf::Texture> charFDeathUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death8.png")}, 8 };
-    dynArray<sf::Texture> charFDeathDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death8.png")}, 8 };
-    dynArray<sf::Texture> charFDeathLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death8.png")}, 8 };
-    dynArray<sf::Texture> charFDeathRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMIdleUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMIdleDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMIdleLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMIdleRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMWalkUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMWalkDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMWalkLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMWalkRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMDeathUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMDeathDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMDeathLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharMDeathRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/M/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFIdleUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFIdleDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFIdleLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFIdleRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFWalkUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFWalkDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFWalkLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFWalkRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFDeathUp = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFDeathDown = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFDeathLeft = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death8.png")}, 8 };
-    dynArray<sf::Texture> mercenaryCharFDeathRight = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Character/F/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death8.png")}, 8 };
-    dynArray<sf::Texture> merchant = { new sf::Texture[8] {sf::Texture("./Assets/Animations/Merchant/Merchant1.png"), sf::Texture("./Assets/Animations/Merchant/Merchant2.png"), sf::Texture("./Assets/Animations/Merchant/Merchant3.png"), sf::Texture("./Assets/Animations/Merchant/Merchant4.png"), sf::Texture("./Assets/Animations/Merchant/Merchant5.png"), sf::Texture("./Assets/Animations/Merchant/Merchant6.png"), sf::Texture("./Assets/Animations/Merchant/Merchant7.png"), sf::Texture("./Assets/Animations/Merchant/Merchant8.png")}, 8};
-    animData.insert(charMIdleUp);
-    animData.insert(charMIdleDown);
-    animData.insert(charMIdleLeft);
-    animData.insert(charMIdleRight);
-    animData.insert(charMWalkUp);
-    animData.insert(charMWalkDown);
-    animData.insert(charMWalkLeft);
-    animData.insert(charMWalkRight);
-    animData.insert(charMDeathUp);
-    animData.insert(charMDeathDown);
-    animData.insert(charMDeathLeft);
-    animData.insert(charMDeathRight);
-    animData.insert(charFIdleUp);
-    animData.insert(charFIdleDown);
-    animData.insert(charFIdleLeft);
-    animData.insert(charFIdleRight);
-    animData.insert(charFWalkUp);
-    animData.insert(charFWalkDown);
-    animData.insert(charFWalkLeft);
-    animData.insert(charFWalkRight);
-    animData.insert(charFDeathUp);
-    animData.insert(charFDeathDown);
-    animData.insert(charFDeathLeft);
-    animData.insert(charFDeathRight);
-    animData.insert(mercenaryCharMIdleUp);
-    animData.insert(mercenaryCharMIdleDown);
-    animData.insert(mercenaryCharMIdleLeft);
-    animData.insert(mercenaryCharMIdleRight);
-    animData.insert(mercenaryCharMWalkUp);
-    animData.insert(mercenaryCharMWalkDown);
-    animData.insert(mercenaryCharMWalkLeft);
-    animData.insert(mercenaryCharMWalkRight);
-    animData.insert(mercenaryCharMDeathUp);
-    animData.insert(mercenaryCharMDeathDown);
-    animData.insert(mercenaryCharMDeathLeft);
-    animData.insert(mercenaryCharMDeathRight);
-    animData.insert(mercenaryCharFIdleUp);
-    animData.insert(mercenaryCharFIdleDown);
-    animData.insert(mercenaryCharFIdleLeft);
-    animData.insert(mercenaryCharFIdleRight);
-    animData.insert(mercenaryCharFWalkUp);
-    animData.insert(mercenaryCharFWalkDown);
-    animData.insert(mercenaryCharFWalkLeft);
-    animData.insert(mercenaryCharFWalkRight);
-    animData.insert(mercenaryCharFDeathUp);
-    animData.insert(mercenaryCharFDeathDown);
-    animData.insert(mercenaryCharFDeathLeft);
-    animData.insert(mercenaryCharFDeathRight);
-    animData.insert(merchant);
-    animNames.insert("CharMIdleUp");
-    animNames.insert("CharMIdleDown");
-    animNames.insert("CharMIdleLeft");
-    animNames.insert("CharMIdleRight");
-    animNames.insert("CharMWalkUp");
-    animNames.insert("CharMWalkDown");
-    animNames.insert("CharMWalkLeft");
-    animNames.insert("CharMWalkRight");
-    animNames.insert("CharMDeathUp");
-    animNames.insert("CharMDeathDown");
-    animNames.insert("CharMDeathLeft");
-    animNames.insert("CharMDeathRight");
-    animNames.insert("CharFIdleUp");
-    animNames.insert("CharFIdleDown");
-    animNames.insert("CharFIdleLeft");
-    animNames.insert("CharFIdleRight");
-    animNames.insert("CharFWalkUp");
-    animNames.insert("CharFWalkDown");
-    animNames.insert("CharFWalkLeft");
-    animNames.insert("CharFWalkRight");
-    animNames.insert("CharFDeathUp");
-    animNames.insert("CharFDeathDown");
-    animNames.insert("CharFDeathLeft");
-    animNames.insert("CharFDeathRight");
-    animNames.insert("MercenaryCharMIdleUp");
-    animNames.insert("MercenaryCharMIdleDown");
-    animNames.insert("MercenaryCharMIdleLeft");
-    animNames.insert("MercenaryCharMIdleRight");
-    animNames.insert("MercenaryCharMWalkUp");
-    animNames.insert("MercenaryCharMWalkDown");
-    animNames.insert("MercenaryCharMWalkLeft");
-    animNames.insert("MercenaryCharMWalkRight");
-    animNames.insert("MercenaryCharMDeathUp");
-    animNames.insert("MercenaryCharMDeathDown");
-    animNames.insert("MercenaryCharMDeathLeft");
-    animNames.insert("MercenaryCharMDeathRight");
-    animNames.insert("MercenaryCharFIdleUp");
-    animNames.insert("MercenaryCharFIdleDown");
-    animNames.insert("MercenaryCharFIdleLeft");
-    animNames.insert("MercenaryCharFIdleRight");
-    animNames.insert("MercenaryCharFWalkUp");
-    animNames.insert("MercenaryCharFWalkDown");
-    animNames.insert("MercenaryCharFWalkLeft");
-    animNames.insert("MercenaryCharFWalkRight");
-    animNames.insert("MercenaryCharFDeathUp");
-    animNames.insert("MercenaryCharFDeathDown");
-    animNames.insert("MercenaryCharFDeathLeft");
-    animNames.insert("MercenaryCharFDeathRight");
-    animNames.insert("Merchant");
+    std::vector<sf::Texture> charMIdleUp = {sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle8.png")};
+    std::vector<sf::Texture> charMIdleDown = {sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle8.png")};
+    std::vector<sf::Texture> charMIdleLeft = {sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle8.png")};
+    std::vector<sf::Texture> charMIdleRight = {sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle8.png")};
+    std::vector<sf::Texture> charMWalkUp = {sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk8.png")};
+    std::vector<sf::Texture> charMWalkDown = {sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk8.png")};
+    std::vector<sf::Texture> charMWalkLeft = {sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk8.png")};
+    std::vector<sf::Texture> charMWalkRight = {sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk8.png")};
+    std::vector<sf::Texture> charMDeathUp = {sf::Texture("./Assets/Animations/Character/M/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death8.png")};
+    std::vector<sf::Texture> charMDeathDown = {sf::Texture("./Assets/Animations/Character/M/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death8.png")};
+    std::vector<sf::Texture> charMDeathLeft = {sf::Texture("./Assets/Animations/Character/M/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death8.png")};
+    std::vector<sf::Texture> charMDeathRight = {sf::Texture("./Assets/Animations/Character/M/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death8.png")};
+    std::vector<sf::Texture> charFIdleUp = {sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle8.png")};
+    std::vector<sf::Texture> charFIdleDown = {sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle8.png")};
+    std::vector<sf::Texture> charFIdleLeft = {sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle8.png")};
+    std::vector<sf::Texture> charFIdleRight = {sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle8.png")};
+    std::vector<sf::Texture> charFWalkUp = {sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk8.png")};
+    std::vector<sf::Texture> charFWalkDown = {sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk8.png")};
+    std::vector<sf::Texture> charFWalkLeft = {sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk8.png")};
+    std::vector<sf::Texture> charFWalkRight = {sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk8.png")};
+    std::vector<sf::Texture> charFDeathUp = {sf::Texture("./Assets/Animations/Character/F/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death8.png")};
+    std::vector<sf::Texture> charFDeathDown = {sf::Texture("./Assets/Animations/Character/F/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death8.png")};
+    std::vector<sf::Texture> charFDeathLeft = {sf::Texture("./Assets/Animations/Character/F/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death8.png")};
+    std::vector<sf::Texture> charFDeathRight = {sf::Texture("./Assets/Animations/Character/F/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharMIdleUp = {sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Up/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharMIdleDown = {sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Down/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharMIdleLeft = {sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Left/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharMIdleRight = {sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/M/Idle/Right/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharMWalkUp = {sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Up/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharMWalkDown = {sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Down/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharMWalkLeft = {sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Left/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharMWalkRight = {sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/M/Walk/Right/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharMDeathUp = {sf::Texture("./Assets/Animations/Character/M/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Up/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharMDeathDown = {sf::Texture("./Assets/Animations/Character/M/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Down/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharMDeathLeft = {sf::Texture("./Assets/Animations/Character/M/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Left/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharMDeathRight = {sf::Texture("./Assets/Animations/Character/M/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/M/Death/Right/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharFIdleUp = {sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Up/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharFIdleDown = {sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Down/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharFIdleLeft = {sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Left/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharFIdleRight = {sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle1.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle2.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle3.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle4.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle5.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle6.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle7.png"), sf::Texture("./Assets/Animations/Character/F/Idle/Right/Idle8.png")};
+    std::vector<sf::Texture> mercenaryCharFWalkUp = {sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Up/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharFWalkDown = {sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Down/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharFWalkLeft = {sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Left/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharFWalkRight = {sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk1.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk2.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk3.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk4.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk5.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk6.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk7.png"), sf::Texture("./Assets/Animations/Character/F/Walk/Right/Walk8.png")};
+    std::vector<sf::Texture> mercenaryCharFDeathUp = {sf::Texture("./Assets/Animations/Character/F/Death/Up/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Up/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharFDeathDown = {sf::Texture("./Assets/Animations/Character/F/Death/Down/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Down/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharFDeathLeft = {sf::Texture("./Assets/Animations/Character/F/Death/Left/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Left/Death8.png")};
+    std::vector<sf::Texture> mercenaryCharFDeathRight = {sf::Texture("./Assets/Animations/Character/F/Death/Right/Death1.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death2.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death3.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death4.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death5.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death6.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death7.png"), sf::Texture("./Assets/Animations/Character/F/Death/Right/Death8.png")};
+    std::vector<sf::Texture> merchant = {sf::Texture("./Assets/Animations/Merchant/Merchant1.png"), sf::Texture("./Assets/Animations/Merchant/Merchant2.png"), sf::Texture("./Assets/Animations/Merchant/Merchant3.png"), sf::Texture("./Assets/Animations/Merchant/Merchant4.png"), sf::Texture("./Assets/Animations/Merchant/Merchant5.png"), sf::Texture("./Assets/Animations/Merchant/Merchant6.png"), sf::Texture("./Assets/Animations/Merchant/Merchant7.png"), sf::Texture("./Assets/Animations/Merchant/Merchant8.png")};
+    animData.push_back(charMIdleUp);
+    animData.push_back(charMIdleDown);
+    animData.push_back(charMIdleLeft);
+    animData.push_back(charMIdleRight);
+    animData.push_back(charMWalkUp);
+    animData.push_back(charMWalkDown);
+    animData.push_back(charMWalkLeft);
+    animData.push_back(charMWalkRight);
+    animData.push_back(charMDeathUp);
+    animData.push_back(charMDeathDown);
+    animData.push_back(charMDeathLeft);
+    animData.push_back(charMDeathRight);
+    animData.push_back(charFIdleUp);
+    animData.push_back(charFIdleDown);
+    animData.push_back(charFIdleLeft);
+    animData.push_back(charFIdleRight);
+    animData.push_back(charFWalkUp);
+    animData.push_back(charFWalkDown);
+    animData.push_back(charFWalkLeft);
+    animData.push_back(charFWalkRight);
+    animData.push_back(charFDeathUp);
+    animData.push_back(charFDeathDown);
+    animData.push_back(charFDeathLeft);
+    animData.push_back(charFDeathRight);
+    animData.push_back(mercenaryCharMIdleUp);
+    animData.push_back(mercenaryCharMIdleDown);
+    animData.push_back(mercenaryCharMIdleLeft);
+    animData.push_back(mercenaryCharMIdleRight);
+    animData.push_back(mercenaryCharMWalkUp);
+    animData.push_back(mercenaryCharMWalkDown);
+    animData.push_back(mercenaryCharMWalkLeft);
+    animData.push_back(mercenaryCharMWalkRight);
+    animData.push_back(mercenaryCharMDeathUp);
+    animData.push_back(mercenaryCharMDeathDown);
+    animData.push_back(mercenaryCharMDeathLeft);
+    animData.push_back(mercenaryCharMDeathRight);
+    animData.push_back(mercenaryCharFIdleUp);
+    animData.push_back(mercenaryCharFIdleDown);
+    animData.push_back(mercenaryCharFIdleLeft);
+    animData.push_back(mercenaryCharFIdleRight);
+    animData.push_back(mercenaryCharFWalkUp);
+    animData.push_back(mercenaryCharFWalkDown);
+    animData.push_back(mercenaryCharFWalkLeft);
+    animData.push_back(mercenaryCharFWalkRight);
+    animData.push_back(mercenaryCharFDeathUp);
+    animData.push_back(mercenaryCharFDeathDown);
+    animData.push_back(mercenaryCharFDeathLeft);
+    animData.push_back(mercenaryCharFDeathRight);
+    animData.push_back(merchant);
+    animNames.push_back("CharMIdleUp");
+    animNames.push_back("CharMIdleDown");
+    animNames.push_back("CharMIdleLeft");
+    animNames.push_back("CharMIdleRight");
+    animNames.push_back("CharMWalkUp");
+    animNames.push_back("CharMWalkDown");
+    animNames.push_back("CharMWalkLeft");
+    animNames.push_back("CharMWalkRight");
+    animNames.push_back("CharMDeathUp");
+    animNames.push_back("CharMDeathDown");
+    animNames.push_back("CharMDeathLeft");
+    animNames.push_back("CharMDeathRight");
+    animNames.push_back("CharFIdleUp");
+    animNames.push_back("CharFIdleDown");
+    animNames.push_back("CharFIdleLeft");
+    animNames.push_back("CharFIdleRight");
+    animNames.push_back("CharFWalkUp");
+    animNames.push_back("CharFWalkDown");
+    animNames.push_back("CharFWalkLeft");
+    animNames.push_back("CharFWalkRight");
+    animNames.push_back("CharFDeathUp");
+    animNames.push_back("CharFDeathDown");
+    animNames.push_back("CharFDeathLeft");
+    animNames.push_back("CharFDeathRight");
+    animNames.push_back("MercenaryCharMIdleUp");
+    animNames.push_back("MercenaryCharMIdleDown");
+    animNames.push_back("MercenaryCharMIdleLeft");
+    animNames.push_back("MercenaryCharMIdleRight");
+    animNames.push_back("MercenaryCharMWalkUp");
+    animNames.push_back("MercenaryCharMWalkDown");
+    animNames.push_back("MercenaryCharMWalkLeft");
+    animNames.push_back("MercenaryCharMWalkRight");
+    animNames.push_back("MercenaryCharMDeathUp");
+    animNames.push_back("MercenaryCharMDeathDown");
+    animNames.push_back("MercenaryCharMDeathLeft");
+    animNames.push_back("MercenaryCharMDeathRight");
+    animNames.push_back("MercenaryCharFIdleUp");
+    animNames.push_back("MercenaryCharFIdleDown");
+    animNames.push_back("MercenaryCharFIdleLeft");
+    animNames.push_back("MercenaryCharFIdleRight");
+    animNames.push_back("MercenaryCharFWalkUp");
+    animNames.push_back("MercenaryCharFWalkDown");
+    animNames.push_back("MercenaryCharFWalkLeft");
+    animNames.push_back("MercenaryCharFWalkRight");
+    animNames.push_back("MercenaryCharFDeathUp");
+    animNames.push_back("MercenaryCharFDeathDown");
+    animNames.push_back("MercenaryCharFDeathLeft");
+    animNames.push_back("MercenaryCharFDeathRight");
+    animNames.push_back("Merchant");
     initMercenaryTextures();
 }
 
@@ -429,7 +324,7 @@ void initMercenaryTextures() {
         if (starts_with(animNames[i], "MercenaryChar")) {
             uint8_t (*fromArr)[4] = starts_with(animNames[i], "MercenaryCharM") ? mFrom : fFrom;
             uint8_t(*toArr)[4] = starts_with(animNames[i], "MercenaryCharM") ? mTo : fTo;
-            dynArray<sf::Texture>& texData = animData[i];
+            std::vector<sf::Texture>& texData = animData[i];
             for (int ii = 0; ii < texData.size(); ii += 1) {
                 sf::Texture& original = texData[ii];
                 sf::Image workImg = original.copyToImage();
@@ -451,10 +346,10 @@ void initMercenaryTextures() {
         }
     }
 }
-dynArray<std::string> mercenaryDialogueKey;
-dynArray<std::string> mercenaryDialogueValue;
-dynArray<std::string> shopDialogueKey;
-dynArray<std::string> shopDialogueValue;
+std::vector<std::string> mercenaryDialogueKey;
+std::vector<std::string> mercenaryDialogueValue;
+std::vector<std::string> shopDialogueKey;
+std::vector<std::string> shopDialogueValue;
 void initDialogues() {
     std::ifstream dialogueCont("Dialogues.txt");
     std::string line;
@@ -489,11 +384,11 @@ void initDialogues() {
             }
         }
         if (mode == "shop") {
-            shopDialogueKey.insert(key);
-            shopDialogueValue.insert(value);
+            shopDialogueKey.push_back(key);
+            shopDialogueValue.push_back(value);
         }else if (mode == "mercenary") {
-            mercenaryDialogueKey.insert(key);
-            mercenaryDialogueValue.insert(value);
+            mercenaryDialogueKey.push_back(key);
+            mercenaryDialogueValue.push_back(value);
         }
     }
 }
@@ -605,14 +500,14 @@ struct Animation {
     double totalTime;
     bool Loop = true;
     std::string combinedName;
-    dynArray<sf::Texture*> KeyFrames;
+    std::vector<sf::Texture*> KeyFrames;
     Animation() : timePerFrame(0.0), totalTime(0.0) {};
     Animation(double time, std::string combinedName, bool loop = true) : timePerFrame(1.0 / time), Loop(loop), combinedName(combinedName) {
-        if (!animNames.contains(combinedName)) return;
-        int Index = animNames.find(combinedName);
-        dynArray<sf::Texture> &data = animData[Index];
+        if (!contains(animNames, combinedName)) return;
+        int Index = find(animNames, combinedName);
+        std::vector<sf::Texture> &data = animData[Index];
         for (int i = 0; i < data.size(); i += 1) {
-            KeyFrames.insert(&data[i]);
+            KeyFrames.push_back(&data[i]);
         }
         totalTime = KeyFrames.size() * (1.0 / time);
     };
@@ -637,8 +532,8 @@ struct Animator {
     double Alpha = 0;
     double currentTime = 0.0;
     int spriteIndex = 0;
-    dynArray<Animation> animationsData;
-    dynArray<std::string> animationsName;
+    std::vector<Animation> animationsData;
+    std::vector<std::string> animationsName;
     std::string Anim = "";
     std::string Variant = "";
     std::string Entity = "";
@@ -651,18 +546,18 @@ struct Animator {
         Entity = entityName;
         for (int i = 0; i < animNames.size(); i += 1) {
             if (starts_with(animNames[i], entityName)) {
-                animationsName.insert(animNames[i]);
-                animationsData.insert({FPS, animNames[i], !findInString(animNames[i], "Death")});
+                animationsName.push_back(animNames[i]);
+                animationsData.push_back({FPS, animNames[i], !findInString(animNames[i], "Death")});
             }
         }
     };
     void addAnimation(std::string name, std::string variant, Animation data) {
-        animationsName.insert(Entity + name + variant);
-        animationsData.insert({1.0 / data.timePerFrame, data.combinedName, data.Loop});
+        animationsName.push_back(Entity + name + variant);
+        animationsData.push_back({1.0 / data.timePerFrame, data.combinedName, data.Loop});
     }
     void addAnimation(std::string name, std::string variant, double FPS = 30.0) {
-        animationsName.insert(Entity + name + variant);
-        animationsData.insert({ FPS, Entity + name + variant });
+        animationsName.push_back(Entity + name + variant);
+        animationsData.push_back({ FPS, Entity + name + variant });
     }
     void changeAnim(std::string anim, std::string variant) {
         bool found = false;
@@ -779,7 +674,7 @@ sf::Color getRanColor() {
 }
 
 grassTile tileMap[worldSize][worldSize];
-dynArray<mapDecor>decorMap = {};
+std::vector<mapDecor>decorMap = {};
 void initTileMap() {
     std::ifstream map("Map.txt");
     std::string currentLine;
@@ -796,7 +691,7 @@ void initTileMap() {
                 if (currentLine[x] == 'S' || currentLine[x] == 'T') {
                     tile.isBlocked = true;
                 }
-                decorMap.insert({ sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), currentLine[x] });
+                decorMap.push_back({ sf::Vector2<int>(tileSize * x, tileSize * y), sf::Vector2<double>(tileSize * x, tileSize * y), currentLine[x] });
             }
         }
         y += 1;
@@ -999,7 +894,7 @@ struct Merchant {
     Merchant() {
         shopPrompt.backgroundColor = sf::Color(0, 0, 0, 0);
         shopPrompt.borderColor = sf::Color(0, 0, 0, 0);
-        int key = shopDialogueKey.find("Prompt");
+        int key = find<std::string>(shopDialogueKey, "Prompt");
         std::string data = fallBackText;
         if (key != -1) {
             data = shopDialogueValue[key];
@@ -1319,11 +1214,11 @@ struct Bullet {
         window.draw(c);
     }
 };
-dynArray<Bullet> Bullets = {};
+std::vector<Bullet> Bullets = {};
 
 void spawnBullet(sf::Vector2<double> startPos, sf::Vector2<double> dir) {
     fire.play();
-    Bullets.insert({startPos, dir});
+    Bullets.push_back({startPos, dir});
 }
 int getFollowIndex();
 struct Mercenary {
@@ -1366,7 +1261,7 @@ struct Mercenary {
     Mercenary() {
         hirePrompt.backgroundColor = sf::Color(0, 0, 0, 0);
         hirePrompt.borderColor = sf::Color(0, 0, 0, 0);
-        int key = mercenaryDialogueKey.find("Prompt");
+        int key = find<std::string>(mercenaryDialogueKey, "Prompt");
         hirePrompt.setText(key != -1 ? mercenaryDialogueValue[key] : fallback);
         animator.Anim = Anim;
         animator.Variant = animVariant;
@@ -1399,7 +1294,7 @@ struct Mercenary {
     Mercenary(sf::Vector2<double> initialPos, bool hired = false, int followIndex = 0) : hired(hired), followIndex(followIndex) {
         hirePrompt.backgroundColor = sf::Color(0, 0, 0, 0);
         hirePrompt.borderColor = sf::Color(0, 0, 0, 0);
-        int key = mercenaryDialogueKey.find("Prompt");
+        int key = find<std::string>(mercenaryDialogueKey, "Prompt");
         hirePrompt.setText(key != -1 ? mercenaryDialogueValue[key] : fallback);
         bareMove(initialPos + cameraPos + getSize() / 2.0);
     }
@@ -1586,7 +1481,7 @@ struct Mercenary {
         animator.draw(window, getWorldPosition(), scale);
     }
 };
-dynArray<Mercenary> mercenaries = {};
+std::vector<Mercenary> mercenaries = {};
 
 int getFollowIndex() {
     int count = 0;
@@ -1628,7 +1523,7 @@ struct Campfire {
         window.draw(Sprite);
     }
 };
-dynArray<Campfire> campfires;
+std::vector<Campfire> campfires;
 sf::Vector2<double> getClosestTarget(Ghost& ghost, Player& player) {
     int size = mercenaries.size();
     sf::Vector2<double>* positions = new sf::Vector2<double>[size + 1];
@@ -1800,7 +1695,7 @@ void spawnMercenaries() {
         int ranY = Random(10, 90);
         grassTile& tile = tileMap[ranY][ranX];
         if (tile.isEmpty) {
-            mercenaries.insert({ (tile.position) , false});
+            mercenaries.push_back({ (tile.position) , false});
             i += 1;
         }
     }
@@ -1937,7 +1832,7 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
     for (int i = Bullets.size() - 1; i >= 0; i -= 1) {
         Bullet& bullet = Bullets[i];
         if (!bullet.active) {
-            Bullets.remove(i);
+            Bullets.erase(Bullets.begin() + i);
         }
         else {
             bool visX = (bullet.getWorldPosition().x + tileSize) >= 0 && (bullet.getWorldPosition().x) <= windowSize.x;
@@ -1963,7 +1858,7 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
     for (int i = campfires.size() - 1; i >= 0; i -= 1) {
         Campfire& campfire = campfires[i];
         if (campfire.markForDelete) {
-            campfires.remove(i);
+            campfires.erase(campfires.begin() + i);
         }
         else {
             mult = 2.0;
@@ -1980,7 +1875,7 @@ void drawMap(sf::RenderWindow& window, Player& player, Ghost& ghost, Merchant& m
     for (int i = mercenaries.size() - 1; i >= 0; i -= 1) {
         Mercenary& mercenary = mercenaries[i];
         if (mercenary.markforDelete) {
-            mercenaries.remove(i);
+            mercenaries.erase(mercenaries.begin() + i);
         }
         else {
             bool visX = (mercenary.getWorldPosition().x + tileSize) >= 0 && (mercenary.getWorldPosition().x) <= windowSize.x;
@@ -2284,7 +2179,7 @@ int main()
                         player.Health = std::min(player.Health + 40.0, 100.0);
                     }
                     else if (name == "Campfire Materials") {
-                        campfires.insert({ player.getPosition() - cameraPos });
+                        campfires.push_back({ player.getPosition() - cameraPos });
                     }
                     player.playerInv.removeItem(name, 1);
                     itemUse.play();
@@ -2361,7 +2256,7 @@ int main()
                 shopDialog.setText(shopDescriptionText);
                 shopDescriptionText = "";
             }else {
-                int key = shopDialogueKey.find("Greet");
+                int key = find<std::string>(shopDialogueKey, "Greet");
                 shopDialog.setText(key != -1 ? shopDialogueValue[key] : "");
             }
             shopDialog.draw(window);
@@ -2369,7 +2264,7 @@ int main()
 
             for (int i = 0; i < pickups - 1; i += 1) {
                 if (mouseOver(shopInventory[i], window)) {
-                    int key2 = shopDialogueKey.find(pickupNames[i]);
+                    int key2 = find(shopDialogueKey, pickupNames[i]);
                     if (key2 != -1) {
                         shopDescriptionText = shopDialogueValue[key2];
                     }

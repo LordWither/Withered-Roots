@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="Withered-Roots.vcxproj" />
+  <Project Path="Withered-Roots.vcxproj" Id="265ed4c8-96a6-4f3a-b899-5a3643ecd851" />
 </Solution>
